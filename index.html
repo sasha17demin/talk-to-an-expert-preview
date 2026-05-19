@@ -1,0 +1,3327 @@
+<!DOCTYPE html>
+<!--
+  ════════════════════════════════════════════════════════════════════════════════
+  /talk-to-an-expert — v3 (signup-v20-styled · full-width HIGH-ICP calendar)
+  ════════════════════════════════════════════════════════════════════════════════
+  Session:  (current) 2026-05-19
+  Iterates: artifacts/talk-to-an-expert-preview-v2-2026-05-18.html (W2 d5c786de…)
+  Design:   plg-promo-page-scope/signup-v20.html (Nick Snopov, 2026-05-06,
+            session 9ff9047b-…). v20's oklch palette + Inter Tight + dark
+            gradient left panel + pink #FF3186 primary CTA.
+
+  WHAT CHANGED vs v2 (Sasha's 2026-05-19 ask):
+    1. Re-skinned to v20 design system (signup-v19/20 brand instead of the
+       former #6C3AED purple/#ff3280 pink mix). Same surface as Register.tsx
+       PLG signup page → unified brand across /signup and /talk-to-an-expert.
+    2. HIGH-ICP state stretches the HubSpot calendar to FULL viewport width
+       (left panel hides, right panel grows to 100% — `body[data-state=high-icp]`
+       drives `--page-cols: 1fr` and `--left-display: none`). The previous
+       540px right-column cap was the "ugly, breaks the flow" complaint.
+    3. Dev `?dev=1` query-param gates the simulator dropdown (no DEV banner
+       visible without it — clean for share/screenshot).
+
+  DEPLOY GUARDRAIL:
+    NOT deployed to improvado.io/register/talk-to-an-expert. Per Sasha:
+    "do not deploy directly to /talk-to-an-expert before we agree and test,
+     it could block discos." Open this file locally / share via Drive only.
+
+  Tested in: Chrome 128, Safari 17. Calendar embed requires real HubSpot
+  Meetings host — works at file:// + localhost because the iframe is a
+  cross-origin embed (HubSpot's own JS handles the resize).
+  ════════════════════════════════════════════════════════════════════════════════
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talk to an Improvado expert</title>
+<meta name="description" content="Talk to Improvado — pick Google, LinkedIn, Microsoft, or work email. We'll route you to the right person in seconds.">
+<link rel="canonical" href="https://improvado.io/register/talk-to-an-expert">
+<link rel="icon" href="https://improvado.io/favicon.ico" type="image/x-icon">
+
+<link rel="preconnect" href="https://report.improvado.io">
+<link rel="preconnect" href="https://marketing-checks.tools.improvado.io">
+<link rel="preconnect" href="https://meetings.hubspot.com">
+<link rel="preconnect" href="https://hs.improvado.io">
+<link rel="preconnect" href="https://static.hsappstatic.net">
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- React + Babel for Nick's v20 carousel (left-panel rotating cards).
+     Babel-standalone parses the inline JSX at the bottom of <body>. -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  /* Reset to identity-selection on load; the state machine drives `data-state`. */
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   v20 palette — oklch
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg: oklch(0.99 0.003 270);
+  --card: oklch(0.97 0.005 270);
+  --ink: oklch(0.18 0.02 270);
+  --ink-2: oklch(0.32 0.015 270);
+  --ink-3: oklch(0.55 0.01 270);
+  --line: oklch(0.94 0.005 270);
+  --line-2: oklch(0.90 0.008 270);
+
+  /* Brand */
+  --pink: #FF3186;
+  --pink-hover: #e8266f;
+  --violet-a: oklch(0.62 0.18 290);
+  --violet-b: oklch(0.66 0.14 240);
+  --violet-deep: oklch(0.20 0.10 285);
+  --linkedin: #0A66C2;
+  --linkedin-hover: #0858a6;
+
+  /* Responsive layout tokens — defaults are desktop, overridden by data-state */
+  --page-cols: 0.85fr 1fr;
+  --page-padding: 14px;
+  --page-gap: 14px;
+  --page-height: 100vh;
+  --page-overflow: hidden;
+  --left-display: block;
+  --right-padding: 26px 56px;
+  --right-overflow: hidden;
+  --right-logo-display: none;
+  --right-max-width: 460px;
+}
+
+.display { font-family: 'Inter Tight', 'Inter', system-ui, sans-serif; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid var(--violet-a); outline-offset: 2px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HIGH-ICP CALENDAR STATE — opens on the right of the SAME page.
+   Left panel stays put (brand stays); right panel widens to fit the
+   HubSpot Meetings iframe and scrolls INTERNALLY inside .right-mid.
+   Only LOW-ICP (ALG) leaves this page.
+   ════════════════════════════════════════════════════════════════════════ */
+body[data-state="high-icp"] {
+  --page-cols: 0.6fr 1fr;          /* narrow left, wide right for calendar */
+  --right-padding: 14px 28px 14px; /* tighter top/bottom — fit 1 viewport */
+  --right-max-width: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Responsive — same breakpoint discipline as signup-v20.html
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 899px) {
+  :root {
+    --page-cols: 1fr;
+    --page-padding: 0;
+    --page-gap: 0;
+    --page-height: auto;
+    --page-overflow: auto;
+    --left-display: none;
+    --right-padding: 36px 32px 36px;
+    --right-overflow: visible;
+    --right-logo-display: flex;
+  }
+}
+@media (max-width: 599px) {
+  :root { --right-padding: 26px 18px 32px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PAGE FRAME
+   ════════════════════════════════════════════════════════════════════════ */
+.page {
+  display: grid;
+  grid-template-columns: var(--page-cols);
+  /* `height` (not min-height) so the page is exactly the viewport tall.
+     Tall content (calendar iframe) scrolls INSIDE .right-mid via its own
+     overflow-y: auto. This keeps left-panel `height: 100%` resolving to
+     a determinate value, so the .left-mid 1fr row doesn't collapse. */
+  height: var(--page-height);
+  padding: var(--page-padding);
+  gap: var(--page-gap);
+  background: var(--bg);
+  box-sizing: border-box;
+  overflow: var(--page-overflow);
+  transition: grid-template-columns 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+              padding 0.3s ease;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   LEFT PANEL — dark gradient, brand pitch
+   (Simplified static version of signup-v20's React carousel — same palette
+   + same visual rhythm, but the calendar is the centerpiece of v3 so the
+   left side stays calm.)
+   ════════════════════════════════════════════════════════════════════════ */
+.left-wrap { display: var(--left-display); min-height: 0; }
+.left {
+  position: relative; height: 100%; padding: 28px;
+  display: grid; grid-template-rows: auto 1fr auto; gap: 14px; min-height: 0;
+  background:
+    radial-gradient(1100px 700px at 18% 28%, color-mix(in oklch, var(--violet-a), transparent 50%) 0%, transparent 55%),
+    radial-gradient(900px 700px at 85% 90%, color-mix(in oklch, var(--violet-b), transparent 60%) 0%, transparent 60%),
+    linear-gradient(160deg, oklch(0.16 0.02 270) 0%, oklch(0.12 0.025 280) 100%);
+  color: rgba(255,255,255,0.92); overflow: hidden; border-radius: 30px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 24px 60px -30px rgba(20,18,40,0.35);
+}
+.left::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.04), transparent),
+    radial-gradient(2px 2px at 70% 60%, rgba(255,255,255,0.03), transparent),
+    radial-gradient(2px 2px at 40% 80%, rgba(255,255,255,0.025), transparent);
+}
+.left-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+.left-mid  { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 18px 8px; }
+.left-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.10); }
+
+.soc2-badge {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(255,255,255,0.96);
+  display: grid; place-items: center; padding: 4px;
+  box-shadow: 0 4px 14px -4px rgba(10,10,30,0.30), inset 0 0 0 1px rgba(255,255,255,0.20);
+  overflow: hidden;
+}
+.soc2-badge img {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+}
+
+/* Pitch card — a single static "what the agent does" card, v20-style chrome */
+.pitch-card {
+  width: 100%; max-width: 440px; background: #fff; border-radius: 26px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 60px 120px -40px rgba(10,10,30,0.55), 0 20px 50px -20px rgba(10,10,30,0.35);
+  padding: 26px 28px 24px;
+  display: grid; grid-template-rows: auto auto 1fr auto; gap: 16px; overflow: hidden;
+  background-image: radial-gradient(700px 400px at 100% 0%, color-mix(in oklch, var(--violet-a), transparent 92%), transparent 60%);
+}
+.pitch-bubble {
+  align-self: flex-start; justify-self: flex-end; max-width: 92%;
+  padding: 14px 18px; background: oklch(0.18 0.02 270);
+  color: rgba(255,255,255,0.95); border-radius: 20px 20px 6px 20px;
+  font-size: 15px; line-height: 1.4; font-weight: 500;
+  box-shadow: 0 4px 14px -6px rgba(10,10,30,0.30);
+}
+.pitch-thinking {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 14px;
+  background: color-mix(in oklch, var(--violet-a), transparent 94%);
+  border: 1px solid color-mix(in oklch, var(--violet-a), transparent 86%);
+  border-radius: 12px; align-self: flex-start;
+}
+.pitch-thinking-spark {
+  width: 24px; height: 24px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--violet-a), var(--violet-b));
+  display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700;
+}
+.pitch-thinking-label { font-size: 13.5px; font-weight: 600; color: oklch(0.28 0.02 270); }
+.pitch-thinking-sub { font-size: 13px; color: oklch(0.45 0.01 270); }
+.pitch-dot-row { margin-left: auto; display: inline-flex; gap: 4px; }
+.pitch-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--violet-a);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.pitch-dot:nth-child(2) { animation-delay: 0.15s; }
+.pitch-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes pulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
+
+.pitch-metric { display: flex; flex-direction: column; gap: 9px; }
+.pitch-metric-label {
+  font-size: 12.5px; color: oklch(0.55 0.01 270);
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
+}
+.pitch-metric-num {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-size: 60px; font-weight: 600; letter-spacing: -0.04em; line-height: 0.9;
+  color: oklch(0.18 0.02 270);
+}
+.pitch-metric-unit { color: oklch(0.70 0.01 270); font-size: 44px; }
+.pitch-metric-row { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.pitch-delta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 999px;
+  background: color-mix(in oklch, oklch(0.62 0.14 155), transparent 88%);
+  color: oklch(0.42 0.14 155);
+  font-size: 14px; font-weight: 600;
+}
+
+.pitch-answer {
+  padding-top: 16px; border-top: 1px solid oklch(0.92 0.005 270);
+  display: flex; align-items: center; gap: 12px;
+}
+.pitch-answer-spark {
+  width: 28px; height: 28px; border-radius: 9px;
+  background: linear-gradient(135deg, var(--violet-a), var(--violet-b));
+  display: grid; place-items: center; flex-shrink: 0;
+  color: #fff; font-size: 14px; font-weight: 700;
+}
+.pitch-answer-text { font-size: 14.5px; color: oklch(0.32 0.01 270); line-height: 1.45; }
+.pitch-answer-text strong { color: oklch(0.18 0.02 270); font-weight: 700; }
+
+.left-foot-copy { color: rgba(255,255,255,0.78); font-size: 12.5px; font-weight: 500; line-height: 1.35; flex: 1; min-width: 0; }
+.left-foot-copy .muted { color: rgba(255,255,255,0.48); }
+.left-foot-pill {
+  display: inline-flex;
+  flex-direction: row;       /* explicit — no wrap, no column-stack */
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.left-foot-pill-num {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: rgba(255,255,255,0.95); letter-spacing: -0.01em;
+  line-height: 1; white-space: nowrap;
+}
+.left-foot-pill-label {
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  line-height: 1; white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RIGHT PANEL — state-driven slot
+   ════════════════════════════════════════════════════════════════════════ */
+.right {
+  min-height: 100%;
+  padding: var(--right-padding);
+  display: grid; grid-template-rows: auto 1fr auto;
+  background: var(--bg); overflow: var(--right-overflow);
+}
+.right-head {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
+}
+.right-logo {
+  display: var(--right-logo-display); align-items: center; min-width: 0; grid-column: 1;
+}
+.right-signin {
+  display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  grid-column: 2; justify-self: end;
+}
+.right-signin span { font-size: 13.5px; color: var(--ink-3); }
+.right-signin a { font-size: 13.5px; color: var(--ink); font-weight: 600; text-decoration: none; }
+@media (max-width: 479px) { .right-signin span { display: none; } }
+
+.right-mid {
+  display: flex; flex-direction: column;
+  /* `safe center` keeps content vertically centered when it fits,
+     but falls back to flex-start when it would overflow — so the
+     HIGH-ICP calendar can scroll without clipping its top edge. */
+  justify-content: safe center;
+  max-width: var(--right-max-width); width: 100%; margin: 0 auto;
+  padding: 24px 0;
+  /* Scroll happens HERE, not on the page. min-height: 0 lets the
+     grid 1fr row constrain this flex item below its content size. */
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.right-foot {
+  display: flex; align-items: center; justify-content: flex-end;
+  width: 100%; margin: 0 auto;
+  padding-top: 12px;
+}
+.right-foot .right-signin { font-size: 13px; }
+.right-foot-legal {
+  font-size: 11.5px; color: var(--ink-3); text-align: center; line-height: 1.5;
+}
+.right-foot-legal a {
+  color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE SECTIONS
+   ════════════════════════════════════════════════════════════════════════ */
+.state { display: none; }
+.state.active { display: contents; }
+/* `display: contents` is the trick — when active, the .state wrapper
+   disappears from the layout tree and its children participate directly
+   in .right-mid's flex flow. */
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600;
+}
+.eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: oklch(0.62 0.14 155);
+  box-shadow: 0 0 0 4px color-mix(in oklch, oklch(0.62 0.14 155), transparent 84%);
+}
+
+.headline {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  margin: 14px 0 12px; color: var(--ink);
+}
+.headline .kicker {
+  display: block; font-size: 22px; line-height: 1.2; letter-spacing: -0.012em;
+  font-weight: 500; color: oklch(0.48 0.022 285); margin-bottom: 6px;
+}
+.headline .punch {
+  display: block; font-size: 40px; line-height: 1.05; letter-spacing: -0.032em; font-weight: 600;
+}
+.sub {
+  margin: 0 0 22px; font-size: 15.5px; line-height: 1.55;
+  color: var(--ink-3); font-weight: 400;
+}
+@media (max-width: 599px) {
+  .headline .kicker { font-size: 16px; }
+  .headline .punch { font-size: 28px; }
+}
+
+/* OAuth row — horizontal G / LinkedIn / Microsoft pills */
+.oauth-stack {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 12px;
+}
+@media (max-width: 520px) {
+  /* On narrow viewports, stack vertically so labels stay legible */
+  .oauth-stack { grid-template-columns: 1fr; }
+}
+
+.btn-base {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 12px 14px;
+  border-radius: 999px;             /* pill / oval */
+  font-size: 14px; font-weight: 600;
+  font-family: inherit; cursor: pointer; border: none;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  text-decoration: none;
+  white-space: nowrap; min-width: 0;
+}
+.btn-base .label { overflow: hidden; text-overflow: ellipsis; }
+
+.btn-google { background: var(--pink); color: #fff; }
+.btn-google:hover { transform: translateY(-1px); background: var(--pink-hover); }
+.btn-google .ic {
+  width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+
+.btn-linkedin { background: var(--linkedin); color: #fff; }
+.btn-linkedin:hover { background: var(--linkedin-hover); transform: translateY(-1px); }
+.btn-linkedin svg { width: 18px; height: 18px; fill: #fff; flex-shrink: 0; }
+
+.btn-microsoft { background: #2F2F2F; color: #fff; }
+.btn-microsoft:hover { background: #1f1f1f; transform: translateY(-1px); }
+.ms-tile {
+  display: grid; grid-template-columns: 8px 8px; grid-template-rows: 8px 8px;
+  gap: 2px; width: 18px; height: 18px; flex-shrink: 0;
+}
+.ms-tile span { display: block; }
+.ms-tile span:nth-child(1) { background: #F25022; }
+.ms-tile span:nth-child(2) { background: #7FBA00; }
+.ms-tile span:nth-child(3) { background: #00A4EF; }
+.ms-tile span:nth-child(4) { background: #FFB900; }
+
+.li-note {
+  font-size: 12px; color: var(--ink-3); padding: 8px 4px 0;
+  line-height: 1.45;
+}
+.li-note strong { color: var(--ink-2); font-weight: 600; }
+
+.divider {
+  display: flex; align-items: center; gap: 14px; margin: 22px 0;
+  color: var(--ink-3); font-size: 12px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.12em;
+}
+.divider span:first-child, .divider span:last-child {
+  flex: 1; height: 1px; background: var(--line);
+}
+
+.email-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px;
+}
+.email-input {
+  padding: 15px 18px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 14px; font-size: 15px; font-family: inherit;
+  outline: none; background: var(--card); color: var(--ink);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.email-input:focus {
+  border-color: var(--violet-a);
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--violet-a), transparent 90%);
+  background: #fff;
+}
+.email-input[aria-invalid="true"] { border-color: oklch(0.65 0.18 25); }
+.btn-continue {
+  padding: 15px 22px;
+  background: linear-gradient(135deg, var(--violet-a), var(--violet-b));
+  color: #fff; border: none; border-radius: 14px;
+  font-size: 15px; font-weight: 600; font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-continue:hover { transform: translateY(-1px); }
+.btn-continue:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.legal {
+  font-size: 11.5px; color: var(--ink-3);
+  text-align: center; line-height: 1.5; margin-top: 18px;
+}
+.legal a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+
+.back-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 22px;
+  background: none; border: none; color: var(--ink-3);
+  font-size: 13.5px; font-family: inherit; cursor: pointer; padding: 0;
+}
+.back-link svg { width: 14px; height: 14px; }
+.back-link:hover { color: var(--ink); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE 2: loading
+   ════════════════════════════════════════════════════════════════════════ */
+.loading-stack { display: flex; flex-direction: column; gap: 22px; }
+.progress-track {
+  height: 4px; border-radius: 999px; background: var(--line);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: var(--bar-width, 0%);
+  background: linear-gradient(90deg, var(--pink), var(--violet-a));
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 999px;
+}
+.phase-list { display: flex; flex-direction: column; gap: 6px; }
+.phase-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  border-left: 3px solid transparent;
+  transition: background 0.2s, border-color 0.2s;
+}
+.phase-row[data-active="true"] {
+  background: color-mix(in oklch, var(--violet-a), transparent 94%);
+  border-left-color: var(--pink);
+}
+.phase-row[data-done="true"] .phase-check { display: block; }
+.phase-row[data-done="true"] .phase-num { display: none; }
+.phase-circle {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #fff; border: 1.5px solid var(--line-2);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: var(--ink-3);
+}
+.phase-row[data-active="true"] .phase-circle {
+  background: var(--pink); border-color: var(--pink); color: #fff;
+}
+.phase-row[data-done="true"] .phase-circle {
+  background: oklch(0.62 0.14 155); border-color: oklch(0.62 0.14 155); color: #fff;
+}
+.phase-check { display: none; width: 14px; height: 14px; stroke: currentColor; }
+.phase-title { font-size: 14.5px; color: var(--ink-2); font-weight: 500; }
+.phase-row[data-active="true"] .phase-title { color: var(--ink); font-weight: 600; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE 3a: HIGH-ICP — Concierge custom calendar (replaces HubSpot iframe)
+   Design: docs/superpowers/specs/2026-05-19-talk-to-an-expert-calendar-design.md
+   Visual reference: .superpowers/brainstorm/.../concierge-v2.html (Layout-C light hero)
+   ════════════════════════════════════════════════════════════════════════ */
+.cc-stack {
+  display: flex; flex-direction: column; gap: 8px;   /* was 14px — squish */
+  width: 100%; max-width: 720px;
+}
+.cc-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap;
+}
+.cc-head-text { min-width: 0; }
+.cc-actions { display: flex; align-items: center; gap: 10px; }
+.calendar-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--line-2); color: var(--ink-2);
+  font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
+}
+.calendar-back:hover { background: #fff; border-color: var(--ink-3); }
+.calendar-back svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+/* Bottom-left back link (replaces top-right placement) — visually de-prioritized
+   vs the primary Book CTA, but still reachable in one move. */
+.cc-back-bottom {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: transparent; border-color: transparent; padding: 6px 0;
+  color: var(--ink-3); font-size: 12.5px;
+}
+.cc-back-bottom:hover { background: transparent; border-color: transparent; color: var(--ink); }
+
+.concierge {
+  background: oklch(0.99 0.003 270);
+  color: var(--ink);
+  padding: 18px 24px;                          /* was 24px 28px — tighter */
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 40px -22px rgba(20,18,40,0.18);
+}
+.concierge * { box-sizing: border-box; }
+.concierge .cc-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600;
+}
+.concierge .cc-eyebrow::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: oklch(0.62 0.14 155);
+  box-shadow: 0 0 0 4px color-mix(in oklch, oklch(0.62 0.14 155), transparent 84%);
+}
+.concierge h1.cc-h {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  margin: 4px 0 2px;                  /* was 12 0 4 */
+  font-size: 24px; line-height: 1.1;  /* was 28px */
+  letter-spacing: -0.025em; font-weight: 600;
+  color: var(--ink);
+}
+.concierge h1.cc-h .kicker {
+  display: block; font-size: 13.5px; line-height: 1.25;  /* was 15.5px */
+  font-weight: 500; color: oklch(0.48 0.022 285);
+  letter-spacing: -0.005em; margin-bottom: 4px;
+}
+.concierge .cc-sub {
+  font-size: 13.5px; color: var(--ink-3); line-height: 1.45; margin: 0 0 12px;  /* was 14.5/1.5/20 */
+}
+
+/* ── Light rep hero ── */
+.cv2-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 14px;                 /* was 16px 18px */
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;                /* was 16px */
+  margin-bottom: 10px;                /* was 18px */
+}
+/* No-avatar variant — chip row owns the visual weight. */
+.cv2-hero--noavatar { padding: 10px 14px; }
+.cv2-hero--noavatar .cv2-hero-av { display: none; }
+.cv2-hero-av {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: linear-gradient(135deg, #FF3186, #a45cff);
+  display: grid; place-items: center;
+  color: #fff; font-weight: 700; font-size: 18px;
+  flex-shrink: 0; overflow: hidden;
+  box-shadow: 0 6px 18px -6px rgba(255,49,134,0.40);
+}
+.cv2-hero-av img { width: 100%; height: 100%; object-fit: cover; }
+.cv2-hero-text { flex: 1; min-width: 0; }
+.cv2-hero-name {
+  font-size: 15.5px; font-weight: 600;
+  color: var(--ink); line-height: 1.2;
+}
+.cv2-hero-meta {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;
+}
+.cv2-chip {
+  font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  background: var(--line);
+  color: var(--ink-2); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.cv2-chip svg { width: 11px; height: 11px; }
+
+/* ── Day cards ── */
+.cv2-days { display: block; }
+.cv2-day {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: border-color 0.18s;
+}
+.cv2-day:hover { border-color: oklch(0.85 0.01 270); }
+.cv2-day-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+.cv2-day-label {
+  font-size: 14px; font-weight: 700;
+  color: var(--ink);
+}
+.cv2-day-date {
+  font-size: 12.5px; color: var(--ink-3);
+  margin-left: 8px; font-weight: 500;
+}
+.cv2-day-count {
+  font-size: 11.5px; color: var(--ink-3); font-weight: 500;
+}
+.cv2-times {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.cv2-pill {
+  padding: 7px 14px; border-radius: 999px;
+  background: #fff; border: 1.5px solid var(--line-2);
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: -0.01em;
+  transition: all 0.15s;
+}
+.cv2-pill:hover {
+  border-color: var(--pink); color: var(--pink);
+}
+.cv2-pill.sel {
+  background: var(--pink); color: #fff; border-color: var(--pink);
+  box-shadow: 0 6px 16px -6px rgba(255,49,134,0.45);
+}
+.cv2-more {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 4px; padding: 10px 14px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  color: var(--ink-2);
+}
+.cv2-more:hover { color: var(--ink); }
+.cv2-more[hidden] { display: none; }
+
+/* ── Suggested-times block (default visible) ── */
+.cv2-suggested {
+  background: #fff; border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 14px;     /* was 14/16, margin 12 */
+  margin-bottom: 8px;
+}
+.cv2-suggested-head {
+  font-size: 10.5px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.10em; margin-bottom: 7px;  /* was 11.5/10 */
+}
+.cv2-suggested-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.cv2-suggested-pill {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 8px 12px;                       /* was 10 14 */
+  background: #fff;
+  border: 1.5px solid var(--line-2);
+  border-radius: 10px;
+  font-family: inherit; cursor: pointer; text-align: left;
+  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+.cv2-suggested-pill:hover {
+  border-color: var(--pink); transform: translateY(-1px);
+  box-shadow: 0 6px 14px -8px rgba(255,49,134,0.30);
+}
+.cv2-suggested-pill.sel {
+  background: var(--pink); color: #fff; border-color: var(--pink);
+  box-shadow: 0 8px 18px -8px rgba(255,49,134,0.55);
+}
+.cv2-suggested-pill .day {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; opacity: 0.7; line-height: 1; margin-bottom: 5px;
+}
+.cv2-suggested-pill.sel .day { opacity: 0.85; }
+.cv2-suggested-pill .time {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1;
+}
+
+/* ── Calendar-toggle (big CTA-style button) ── */
+.cv2-cal-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px 18px;        /* was 14px */
+  background: var(--card);
+  border: 1.5px solid var(--line-2);
+  border-radius: 10px;
+  font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+  cursor: pointer; margin-bottom: 8px;    /* was 12 */
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.cv2-cal-toggle:hover { border-color: var(--ink-3); color: var(--ink); background: #fff; }
+.cv2-cal-toggle svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.4; transition: transform 0.2s; }
+.cv2-cal-toggle[data-open="true"] svg { transform: rotate(180deg); }
+
+/* ── Expandable calendar pane (mini-month + day's slots) ── */
+.cv2-cal-pane {
+  display: none;                    /* hidden until toggled */
+  grid-template-columns: minmax(200px, 1fr) minmax(0, 1.1fr);
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;               /* was 14 16 */
+  margin-bottom: 8px;
+}
+.cv2-cal-pane[data-open="true"] { display: grid; }
+@media (max-width: 640px) {
+  .cv2-cal-pane[data-open="true"] { grid-template-columns: 1fr; }
+}
+.cv2-mini-cal { min-width: 0; }
+.cv2-mini-cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px;
+  gap: 6px;
+}
+.cv2-mini-cal-month { flex: 1; text-align: center; white-space: nowrap; }
+.cv2-mini-cal-arrow {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px;
+  background: transparent; border: 1px solid var(--line-2); border-radius: 6px;
+  cursor: pointer; padding: 0; color: var(--ink-2);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cv2-mini-cal-arrow:hover { background: var(--card); border-color: var(--ink-3); color: var(--ink); }
+.cv2-mini-cal-arrow svg { width: 10px; height: 10px; fill: currentColor; }
+.cv2-mini-cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  font-size: 10px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  text-align: center; margin-bottom: 6px;
+}
+.cv2-mini-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+}
+.cv2-mini-cal-day {
+  aspect-ratio: 1;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 500; color: var(--ink);
+  border-radius: 8px; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.cv2-mini-cal-day.unavail { color: var(--line-2); cursor: not-allowed; }
+.cv2-mini-cal-day:hover:not(.unavail):not(.sel) { background: var(--card); }
+.cv2-mini-cal-day.sel {
+  background: var(--pink); color: #fff; font-weight: 700;
+}
+.cv2-mini-cal-day.blank { cursor: default; }
+
+.cv2-day-pane { min-width: 0; }
+.cv2-day-pane-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 12.5px; color: var(--ink-3); margin-bottom: 10px;
+}
+.cv2-day-pane-head strong {
+  font-size: 14px; font-weight: 700; color: var(--ink); font-family: inherit;
+}
+.cv2-day-pane-times {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 5px;
+  max-height: 220px; overflow-y: auto;   /* was 280 — tighter */
+}
+.cv2-day-pane-times .cv2-pill { padding: 8px 6px; font-size: 12.5px; }
+
+/* ── Confirm CTA (appears after slot pick) ── */
+.cv2-confirm {
+  display: none;
+  align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 8px; padding: 12px 16px;     /* was 18 / 16 18 */
+  background: linear-gradient(135deg, oklch(0.18 0.02 270), oklch(0.22 0.04 280));
+  border-radius: 12px; color: #fff;
+}
+.cv2-confirm[data-visible="true"] { display: flex; }
+.cv2-confirm-info { font-size: 13.5px; line-height: 1.45; min-width: 0; }
+.cv2-confirm-info strong { font-weight: 700; }
+.cv2-confirm-info .when { display: block; color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 2px; }
+.cv2-confirm-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 18px; border-radius: 10px;
+  background: var(--pink); color: #fff;
+  border: none; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 10px 24px -8px rgba(255,49,134,0.50);
+  white-space: nowrap;
+}
+.cv2-confirm-btn:hover { background: var(--pink-hover); }
+.cv2-confirm-btn[disabled] { opacity: 0.65; cursor: progress; }
+.cv2-tz {
+  margin-top: 14px; font-size: 11.5px; color: var(--ink-3);
+  text-align: right;
+}
+.cv2-tz a { color: var(--ink-2); text-decoration: underline; cursor: pointer; }
+
+/* Loading / empty / error / booked sub-states inside the concierge */
+.cv2-loading, .cv2-empty, .cv2-error, .cv2-booked {
+  padding: 28px 18px; text-align: center;
+  font-size: 14px; color: var(--ink-2);
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+}
+.cv2-loading .cv2-spin {
+  display: inline-block; width: 22px; height: 22px;
+  border: 2.5px solid var(--line-2); border-top-color: var(--pink);
+  border-radius: 50%; animation: cv2spin 0.9s linear infinite;
+  margin-bottom: 10px;
+}
+@keyframes cv2spin { to { transform: rotate(360deg); } }
+.cv2-error a, .cv2-empty a, .cv2-booked a { color: var(--pink); font-weight: 600; }
+.cv2-booked .cv2-check {
+  display: inline-grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: color-mix(in oklch, oklch(0.62 0.14 155), transparent 80%);
+  color: oklch(0.45 0.16 155); margin-bottom: 12px;
+  font-size: 22px; font-weight: 700;
+}
+.cv2-booked h3 {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-size: 19px; font-weight: 600; color: var(--ink);
+  margin: 0 0 6px;
+}
+.cv2-booked .when {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13.5px; color: var(--ink-2); margin: 4px 0 10px;
+}
+.cv2-booked .hint { font-size: 12.5px; color: var(--ink-3); }
+
+/* Polished booked card — replaces the minimal "You're booked" template */
+.cv2-booked { padding: 36px 28px 32px; max-width: 520px; margin: 0 auto; }
+.cv2-booked .cv2-check {
+  width: 56px; height: 56px; font-size: 28px;
+  background: color-mix(in oklch, oklch(0.62 0.14 155), transparent 78%);
+  color: oklch(0.40 0.16 155); margin-bottom: 16px;
+}
+.cv2-booked h3 {
+  font-size: 24px; line-height: 1.2; letter-spacing: -0.018em;
+  margin: 0 0 6px;
+}
+.cv2-booked-lede {
+  font-size: 14.5px; color: var(--ink-3); margin: 0 0 22px; line-height: 1.5;
+}
+.cv2-booked-detail {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; text-align: left; margin: 0 auto 18px; max-width: 380px;
+}
+.cv2-booked-detail .row {
+  display: grid; grid-template-columns: 70px 1fr;
+  align-items: baseline; gap: 12px;
+  padding: 6px 0; font-size: 13.5px;
+}
+.cv2-booked-detail .row + .row { border-top: 1px solid var(--line); }
+.cv2-booked-detail .lbl {
+  font-size: 11px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+}
+.cv2-booked-detail .val { color: var(--ink); font-weight: 500; }
+.cv2-booked-detail .val strong { font-weight: 700; }
+.cv2-booked-hint {
+  font-size: 12.5px; color: var(--ink-3); line-height: 1.55;
+  max-width: 380px; margin: 0 auto 20px;
+}
+.cv2-booked-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 28px; border-radius: 12px;
+  background: var(--ink); color: #fff;
+  border: none; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  transition: transform 0.15s, background 0.15s;
+}
+.cv2-booked-cta:hover { background: oklch(0.12 0.02 270); transform: translateY(-1px); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE 3b: MID-ICP — side-by-side chooser
+   ════════════════════════════════════════════════════════════════════════ */
+.chooser-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-top: 8px;
+}
+@media (max-width: 760px) { .chooser-grid { grid-template-columns: 1fr; } }
+.chooser-card {
+  background: #fff; border: 1.5px solid var(--line-2);
+  border-radius: 18px; padding: 22px;
+  display: flex; flex-direction: column; gap: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.chooser-card:hover {
+  border-color: var(--violet-a);
+  box-shadow: 0 16px 40px -16px rgba(108,58,237,0.20);
+  transform: translateY(-2px);
+}
+.chooser-card .icon {
+  width: 42px; height: 42px; border-radius: 11px;
+  display: grid; place-items: center;
+}
+.chooser-card.book .icon { background: color-mix(in oklch, var(--violet-a), transparent 84%); color: var(--violet-deep); }
+.chooser-card.alg  .icon { background: color-mix(in oklch, var(--pink), transparent 84%); color: var(--pink); }
+.chooser-card .icon svg { width: 22px; height: 22px; }
+.chooser-card h3 {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-size: 20px; font-weight: 600; color: var(--ink); margin: 0;
+}
+.chooser-card p { font-size: 14px; color: var(--ink-3); margin: 0; }
+.chooser-card ul { list-style: none; padding: 0; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.chooser-card li {
+  font-size: 13px; color: var(--ink-2); padding-left: 20px;
+  position: relative; line-height: 1.45;
+}
+.chooser-card li::before {
+  content: ''; position: absolute; left: 0; top: 6px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: color-mix(in oklch, oklch(0.62 0.14 155), transparent 70%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+  background-size: 8px; background-position: center; background-repeat: no-repeat;
+}
+/* Tentative bullet — yellow disc, italicized note. Used for fit signals
+   that are guidance rather than guarantees (e.g. budget heuristics). */
+.chooser-card li.tentative { color: var(--ink-2); font-style: italic; font-weight: 700; }
+.chooser-card li.tentative::before {
+  background: color-mix(in oklch, oklch(0.78 0.16 85), transparent 55%);
+  background-image: none;                 /* drop the green check glyph */
+  border: 1px solid color-mix(in oklch, oklch(0.78 0.16 85), transparent 30%);
+}
+.chooser-card .cta {
+  margin-top: auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 18px; border-radius: 12px;
+  font-weight: 600; font-size: 14.5px; font-family: inherit;
+  border: none; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.chooser-card.book .cta {
+  background: linear-gradient(135deg, var(--violet-a), var(--violet-b)); color: #fff;
+  box-shadow: 0 10px 24px -10px var(--violet-a);
+}
+.chooser-card.alg .cta {
+  background: var(--pink); color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(255,49,134,0.50);
+}
+.chooser-card .cta:hover { transform: translateY(-1px); }
+.chooser-card .badge {
+  display: inline-block; align-self: flex-start;
+  background: color-mix(in oklch, var(--violet-a), transparent 86%);
+  color: var(--violet-deep); font-size: 11px; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE 4a: ALG-OAUTH splash
+   STATE 4b: ALG-EMAIL password reveal
+   ════════════════════════════════════════════════════════════════════════ */
+.alg-card {
+  display: flex; flex-direction: column; gap: 14px;
+  background: #fff; border: 1px solid var(--line);
+  border-radius: 18px; padding: 28px;
+  box-shadow: 0 16px 40px -20px rgba(20,18,40,0.10);
+}
+.alg-ring {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 4px solid var(--line); border-top-color: var(--pink);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.email-pill {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px;
+  background: var(--card); border: 1px solid var(--line-2); border-radius: 12px;
+  font-size: 14.5px;
+}
+.email-pill .em { color: var(--ink); font-weight: 600; word-break: break-all; }
+.email-pill .change {
+  background: none; border: none; color: var(--pink);
+  font-weight: 600; cursor: pointer; font-size: 13px; font-family: inherit;
+  white-space: nowrap;
+}
+.password-row {
+  position: relative; display: grid; grid-template-columns: 1fr auto; gap: 8px;
+}
+.pw-input {
+  padding: 15px 18px;
+  border: 1.5px solid var(--line-2); border-radius: 14px;
+  font-size: 15px; font-family: inherit; outline: none; background: var(--card);
+}
+.pw-input:focus { border-color: var(--violet-a); background: #fff; }
+.pw-toggle {
+  background: none; border: 1px solid var(--line-2); border-radius: 10px;
+  font-size: 12px; padding: 0 14px; cursor: pointer; color: var(--ink-3);
+  font-family: inherit;
+}
+.pw-meter {
+  display: flex; gap: 14px; font-size: 12px; color: var(--ink-3);
+  margin-top: 6px;
+}
+.pw-meter span::before { content: '○ '; color: var(--ink-3); }
+.pw-meter span.ok::before { content: '● '; color: oklch(0.62 0.14 155); }
+.pw-meter span.ok { color: oklch(0.42 0.14 155); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   DEV CONTROLS — only visible when ?dev=1
+   ════════════════════════════════════════════════════════════════════════ */
+.dev-controls {
+  display: none;
+  align-items: center; gap: 10px; padding: 8px 12px;
+  margin-bottom: 14px;
+  background: color-mix(in oklch, var(--violet-a), transparent 92%);
+  border: 1px dashed var(--violet-a); border-radius: 10px;
+  font-size: 12.5px; font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--violet-deep);
+  flex-wrap: wrap;
+}
+/* Dev controls show ONLY on the initial identity-selection screen so
+   subsequent states (loading, calendar, chooser, ALG) render prod-like. */
+body[data-dev][data-state="identity-selection"] .dev-controls { display: flex; }
+body[data-dev="2"][data-state="identity-selection"] .dev-controls::after {
+  /* breadcrumb visible only on dev=2 so we know test-bypass is on */
+  content: 'test-bypass: ON';
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  background: oklch(0.78 0.16 85); color: oklch(0.20 0.10 285);
+  padding: 3px 8px; border-radius: 6px; margin-left: auto;
+}
+.dev-controls select {
+  font-family: inherit; font-size: 12.5px; padding: 5px 8px;
+  border: 1px solid color-mix(in oklch, var(--violet-a), transparent 70%);
+  border-radius: 6px; background: #fff;
+}
+.dev-controls button {
+  font-family: inherit; font-size: 12.5px; padding: 5px 12px;
+  border: none; border-radius: 6px; background: var(--violet-a); color: #fff;
+  cursor: pointer;
+}
+.dev-controls .resolved {
+  font-size: 11.5px; padding: 3px 8px;
+  background: rgba(255,255,255,0.6); border-radius: 999px;
+  color: var(--violet-deep);
+}
+.dev-controls .resolved[hidden] { display: none; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   ERROR STATE
+   ════════════════════════════════════════════════════════════════════════ */
+.err {
+  font-size: 13px; color: oklch(0.50 0.18 25);
+  padding: 10px 14px; border-radius: 10px;
+  background: color-mix(in oklch, oklch(0.65 0.18 25), transparent 92%);
+  border: 1px solid color-mix(in oklch, oklch(0.65 0.18 25), transparent 80%);
+  margin-top: 8px;
+}
+</style>
+</head>
+
+<body data-state="identity-selection">
+<main class="page" id="page">
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       LEFT — dark gradient pitch panel (hidden on HIGH-ICP via CSS var)
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="left-wrap">
+    <aside class="left">
+      <div class="left-head">
+        <!-- Improvado wordmark (v20-style: pink circle + white "improvado") -->
+        <svg width="142" height="42" viewBox="0 0 354 106" fill="none" aria-label="Improvado">
+          <rect width="106" height="106" rx="53" fill="#FF3186"/>
+          <path d="M20.4961 38.8624C20.4961 36.829 22.0751 35.1133 23.9068 35.1133H24.4753C26.4333 35.1133 27.8861 36.829 27.8861 38.8624V68.9189C27.8861 70.9523 26.307 72.668 24.4753 72.668H23.9068C22.012 72.668 20.4961 70.9523 20.4961 68.9189V38.8624ZM24.2227 28.8224C26.2438 28.8224 27.9492 27.1067 27.9492 25.0733C27.9492 23.0399 26.2438 21.3242 24.2227 21.3242C22.2015 21.3242 20.4961 23.0399 20.4961 25.0733C20.4961 27.1067 22.2015 28.8224 24.2227 28.8224Z" fill="#fff"/>
+          <path d="M78.0212 57.2604V50.159C78.0212 46.0377 74.6603 42.6772 70.5385 42.6772C66.4167 42.6772 63.0558 46.0377 63.0558 50.159V57.2604V68.8636C63.0558 70.8926 61.3437 72.6046 59.3145 72.6046C57.2852 72.6046 55.5731 70.8926 55.5731 68.8636V57.2604V50.159C55.5731 46.0377 52.2122 42.6772 48.0904 42.6772C43.9686 42.6772 40.6077 46.0377 40.6077 50.159V51.4271V68.927C40.6077 70.956 38.8956 72.668 36.8664 72.668C34.8371 72.668 33.125 70.956 33.125 68.927V51.4271C33.125 51.3003 33.125 51.1735 33.125 50.9833C33.125 50.7297 33.125 50.4126 33.125 50.159C33.125 41.8529 39.7833 35.1953 48.0904 35.1953C52.5927 35.1953 56.5877 37.1609 59.3145 40.2678C62.0412 37.1609 66.0362 35.1953 70.5385 35.1953C78.8456 35.1953 85.5039 41.8529 85.5039 50.159C85.5039 50.4126 85.5039 50.7297 85.5039 50.9833C85.5039 51.1101 85.5039 51.2369 85.5039 51.4271V68.927C85.5039 70.956 83.7918 72.668 81.7626 72.668C79.7333 72.668 78.0212 70.956 78.0212 68.927V57.2604Z" fill="#fff"/>
+          <path d="M99 53.4195C99 43.0991 107.353 34.7415 117.668 34.7415C127.983 34.7415 136.336 43.0991 136.336 53.4195C136.336 63.7399 127.983 72.0975 117.668 72.0975C113.428 72.0975 109.568 70.7046 106.467 68.3619V87.04C106.467 89.0661 104.759 90.7756 102.734 90.7756C100.709 90.7756 99 89.0661 99 87.04V53.4195ZM117.668 64.6263C123.806 64.6263 128.869 59.5611 128.869 53.4195C128.869 47.2779 123.806 42.2127 117.668 42.2127C111.53 42.2127 106.467 47.2779 106.467 53.4195C106.467 59.5611 111.53 64.6263 117.668 64.6263Z" fill="#fff"/>
+          <path d="M158.801 42.2127C160.826 42.2127 162.534 40.5032 162.534 38.4771C162.534 36.451 160.826 34.7415 158.801 34.7415C154.561 34.7415 150.701 36.1344 147.6 38.4771C147.6 36.451 145.891 34.7415 143.866 34.7415C141.841 34.7415 140.133 36.451 140.133 38.4771V68.4252C140.133 70.4513 141.841 72.1608 143.866 72.1608C145.891 72.1608 147.6 70.4513 147.6 68.4252V53.4195C147.6 47.2779 152.662 42.2127 158.801 42.2127Z" fill="#fff"/>
+          <path d="M208.541 37.2107C207.844 35.2479 205.693 34.2982 203.668 34.9947C201.706 35.6911 200.694 37.8438 201.453 39.8066L212.401 69.6915C212.97 71.2744 214.489 72.2241 216.134 72.0975C217.78 72.1608 219.298 71.2111 219.868 69.6915L230.816 39.7433C231.512 37.7805 230.499 35.6278 228.601 34.9313C226.576 34.2349 224.487 35.2479 223.728 37.1474L216.134 57.9148L208.541 37.2107Z" fill="#fff"/>
+          <path d="M262.836 68.3619C259.735 70.7046 255.875 72.0975 251.635 72.0975C241.32 72.0975 232.967 63.7399 232.967 53.4195C232.967 43.0991 241.32 34.7415 251.635 34.7415C261.95 34.7415 270.303 43.0991 270.303 53.4195V68.3619C270.303 70.388 268.594 72.0975 266.569 72.0975C264.544 72.1609 262.836 70.4513 262.836 68.3619ZM251.635 64.6263C257.773 64.6263 262.836 59.5611 262.836 53.4195C262.836 47.2779 257.773 42.2127 251.635 42.2127C245.496 42.2127 240.434 47.2779 240.434 53.4195C240.434 59.5611 245.496 64.6263 251.635 64.6263Z" fill="#fff"/>
+          <path d="M312.068 53.4194C312.068 63.7398 303.715 72.0974 293.4 72.0974C283.086 72.0974 274.732 63.7398 274.732 53.4194C274.732 43.099 283.086 34.7413 293.4 34.7413C297.64 34.7413 301.5 36.1343 304.601 38.477V19.7356C304.601 17.7095 306.31 16 308.335 16C310.36 16 312.068 17.7095 312.068 19.7356V53.4194ZM293.4 42.2126C287.262 42.2126 282.2 47.2778 282.2 53.4194C282.2 59.561 287.262 64.6262 293.4 64.6262C299.539 64.6262 304.601 59.561 304.601 53.4194C304.601 47.2778 299.539 42.2126 293.4 42.2126Z" fill="#fff"/>
+          <path d="M335.166 34.7415C324.851 34.7415 316.498 43.0991 316.498 53.4195C316.498 63.7399 324.851 72.0975 335.166 72.0975C345.481 72.0975 353.834 63.7399 353.834 53.4195C353.834 43.0991 345.481 34.7415 335.166 34.7415ZM335.166 64.6263C329.028 64.6263 323.965 59.5611 323.965 53.4195C323.965 47.2779 329.028 42.2127 335.166 42.2127C341.304 42.2127 346.367 47.2779 346.367 53.4195C346.367 59.5611 341.304 64.6263 335.166 64.6263Z" fill="#fff"/>
+          <path d="M180.633 34.7415C170.318 34.7415 161.965 43.0991 161.965 53.4195C161.965 63.7399 170.318 72.0975 180.633 72.0975C190.948 72.0975 199.301 63.7399 199.301 53.4195C199.301 43.0991 190.948 34.7415 180.633 34.7415ZM180.633 64.6263C174.495 64.6263 169.432 59.5611 169.432 53.4195C169.432 47.2779 174.495 42.2127 180.633 42.2127C186.771 42.2127 191.834 47.2779 191.834 53.4195C191.834 59.5611 186.771 64.6263 180.633 64.6263Z" fill="#fff"/>
+        </svg>
+        <div class="soc2-badge" title="SOC 2 Type II — AICPA attested">
+          <img src="data:image/png;base64,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" alt="SOC 2 Type II — AICPA attested">
+        </div>
+      </div>
+
+      <div class="left-mid">
+        <!-- Nick Snopov's signup-v20 rotating carousel of 5 conversation
+             cards (ROAS · CAC · Pipeline · Foundation · Attribution) lives
+             here, rendered by React+Babel at the bottom of <body>.
+             Mount point only — all content is React. -->
+        <div id="v20-carousel-root" style="width:100%; max-width:520px; height:620px; max-height:100%; display:flex; align-items:center; justify-content:center;"></div>
+      </div>
+
+      <div class="left-foot">
+        <div class="left-foot-copy">
+          Talk to your marketing data.<br>
+          <span class="muted">Answers in seconds, not sprints.</span>
+        </div>
+        <div class="left-foot-pill">
+          <span class="left-foot-pill-num">1,000+</span>
+          <span class="left-foot-pill-label">sources</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       RIGHT — state-driven slot
+       ════════════════════════════════════════════════════════════════════ -->
+  <section class="right">
+
+    <div class="right-head">
+      <div class="right-logo">
+        <!-- Logo in dark for mobile + HIGH-ICP states (when left panel is hidden) -->
+        <svg width="120" height="36" viewBox="0 0 354 106" fill="none" aria-label="Improvado">
+          <rect width="106" height="106" rx="53" fill="#FF3186"/>
+          <path d="M20.4961 38.8624C20.4961 36.829 22.0751 35.1133 23.9068 35.1133H24.4753C26.4333 35.1133 27.8861 36.829 27.8861 38.8624V68.9189C27.8861 70.9523 26.307 72.668 24.4753 72.668H23.9068C22.012 72.668 20.4961 70.9523 20.4961 68.9189V38.8624Z" fill="#fff"/>
+          <circle cx="24.22" cy="25.07" r="3.73" fill="#fff"/>
+          <path d="M78.02 57.26V50.16C78.02 46.04 74.66 42.68 70.54 42.68C66.42 42.68 63.06 46.04 63.06 50.16V57.26V68.86C63.06 70.89 61.34 72.6 59.31 72.6C57.29 72.6 55.57 70.89 55.57 68.86V57.26V50.16C55.57 46.04 52.21 42.68 48.09 42.68C43.97 42.68 40.61 46.04 40.61 50.16V51.43V68.93C40.61 70.96 38.9 72.67 36.87 72.67C34.84 72.67 33.13 70.96 33.13 68.93V51.43C33.13 51.3 33.13 51.17 33.13 50.98C33.13 50.73 33.13 50.41 33.13 50.16C33.13 41.85 39.78 35.2 48.09 35.2C52.59 35.2 56.59 37.16 59.31 40.27C62.04 37.16 66.04 35.2 70.54 35.2C78.85 35.2 85.5 41.85 85.5 50.16V68.93C85.5 70.96 83.79 72.67 81.76 72.67C79.73 72.67 78.02 70.96 78.02 68.93V57.26Z" fill="var(--ink)"/>
+          <path d="M99 53.42C99 43.1 107.35 34.74 117.67 34.74C127.98 34.74 136.34 43.1 136.34 53.42C136.34 63.74 127.98 72.1 117.67 72.1C113.43 72.1 109.57 70.7 106.47 68.36V87.04C106.47 89.07 104.76 90.78 102.73 90.78C100.71 90.78 99 89.07 99 87.04V53.42ZM117.67 64.63C123.81 64.63 128.87 59.56 128.87 53.42C128.87 47.28 123.81 42.21 117.67 42.21C111.53 42.21 106.47 47.28 106.47 53.42C106.47 59.56 111.53 64.63 117.67 64.63Z" fill="var(--ink)"/>
+          <path d="M158.8 42.21C160.83 42.21 162.53 40.5 162.53 38.48C162.53 36.45 160.83 34.74 158.8 34.74C154.56 34.74 150.7 36.13 147.6 38.48C147.6 36.45 145.89 34.74 143.87 34.74C141.84 34.74 140.13 36.45 140.13 38.48V68.43C140.13 70.45 141.84 72.16 143.87 72.16C145.89 72.16 147.6 70.45 147.6 68.43V53.42C147.6 47.28 152.66 42.21 158.8 42.21Z" fill="var(--ink)"/>
+          <path d="M208.54 37.21C207.84 35.25 205.69 34.3 203.67 34.99C201.71 35.69 200.69 37.84 201.45 39.81L212.4 69.69C212.97 71.27 214.49 72.22 216.13 72.1C217.78 72.16 219.3 71.21 219.87 69.69L230.82 39.74C231.51 37.78 230.5 35.63 228.6 34.93C226.58 34.23 224.49 35.25 223.73 37.15L216.13 57.91L208.54 37.21Z" fill="var(--ink)"/>
+          <path d="M262.84 68.36C259.74 70.7 255.88 72.1 251.64 72.1C241.32 72.1 232.97 63.74 232.97 53.42C232.97 43.1 241.32 34.74 251.64 34.74C261.95 34.74 270.3 43.1 270.3 53.42V68.36C270.3 70.39 268.59 72.1 266.57 72.1C264.54 72.16 262.84 70.45 262.84 68.36ZM251.64 64.63C257.77 64.63 262.84 59.56 262.84 53.42C262.84 47.28 257.77 42.21 251.64 42.21C245.5 42.21 240.43 47.28 240.43 53.42C240.43 59.56 245.5 64.63 251.64 64.63Z" fill="var(--ink)"/>
+          <path d="M312.07 53.42C312.07 63.74 303.72 72.1 293.4 72.1C283.09 72.1 274.73 63.74 274.73 53.42C274.73 43.1 283.09 34.74 293.4 34.74C297.64 34.74 301.5 36.13 304.6 38.48V19.74C304.6 17.71 306.31 16 308.34 16C310.36 16 312.07 17.71 312.07 19.74V53.42ZM293.4 42.21C287.26 42.21 282.2 47.28 282.2 53.42C282.2 59.56 287.26 64.63 293.4 64.63C299.54 64.63 304.6 59.56 304.6 53.42C304.6 47.28 299.54 42.21 293.4 42.21Z" fill="var(--ink)"/>
+          <path d="M335.17 34.74C324.85 34.74 316.5 43.1 316.5 53.42C316.5 63.74 324.85 72.1 335.17 72.1C345.48 72.1 353.83 63.74 353.83 53.42C353.83 43.1 345.48 34.74 335.17 34.74ZM335.17 64.63C329.03 64.63 323.97 59.56 323.97 53.42C323.97 47.28 329.03 42.21 335.17 42.21C341.3 42.21 346.37 47.28 346.37 53.42C346.37 59.56 341.3 64.63 335.17 64.63Z" fill="var(--ink)"/>
+          <path d="M180.63 34.74C170.32 34.74 161.97 43.1 161.97 53.42C161.97 63.74 170.32 72.1 180.63 72.1C190.95 72.1 199.3 63.74 199.3 53.42C199.3 43.1 190.95 34.74 180.63 34.74ZM180.63 64.63C174.5 64.63 169.43 59.56 169.43 53.42C169.43 47.28 174.5 42.21 180.63 42.21C186.77 42.21 191.83 47.28 191.83 53.42C191.83 59.56 186.77 64.63 180.63 64.63Z" fill="var(--ink)"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="right-mid">
+
+      <!-- DEV controls — gated on ?dev=1 -->
+      <div class="dev-controls" aria-hidden="true">
+        <label for="dev-tier">Simulate router outcome:</label>
+        <select id="dev-tier">
+          <option value="auto">— pick a router outcome —</option>
+          <option value="high">HIGH-ICP → calendar</option>
+          <option value="mid">MID-ICP → chooser (book OR try free)</option>
+          <option value="low">LOW-ICP → ALG (self-serve)</option>
+        </select>
+        <button id="dev-reset" type="button">Reset</button>
+        <span class="resolved" id="dev-resolved" hidden></span>
+      </div>
+
+      <!-- ──────────────────────────────────────────────────────────────────
+           STATE 1: identity-selection
+           ────────────────────────────────────────────────────────────────── -->
+      <div class="state active" data-state="identity-selection">
+        <h1 class="headline">
+          <span class="kicker">AI-Native Marketing Intelligence.</span>
+          <span class="punch">See it Live for Free</span>
+        </h1>
+        <p class="sub">Choose how you'd like to start.</p>
+
+        <div class="oauth-stack">
+          <!-- Google primary (pink #FF3186 per v20) -->
+          <button type="button" class="btn-base btn-google" id="btn-google" data-provider="google" aria-label="Continue with Google">
+            <span class="ic">
+              <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.61z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.32A9 9 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.97 10.71a5.41 5.41 0 0 1 0-3.42V4.96H.96a9 9 0 0 0 0 8.07l3-2.32z"/>
+                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.34l2.58-2.59A9 9 0 0 0 9 0 9 9 0 0 0 .96 4.96l3 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+              </svg>
+            </span>
+            <span class="label">Google</span>
+          </button>
+
+          <!-- LinkedIn — ENABLED 2026-05-19 (Ilya shipped /register-agency/linkedin/start/) -->
+          <button type="button" class="btn-base btn-linkedin" id="btn-linkedin" data-provider="linkedin" aria-label="Continue with LinkedIn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.05-1.86-3.05-1.86 0-2.14 1.45-2.14 2.95v5.67H9.33V9h3.42v1.56h.05c.48-.9 1.65-1.86 3.4-1.86 3.64 0 4.31 2.4 4.31 5.52v6.23zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0z"/>
+            </svg>
+            <span class="label">LinkedIn</span>
+          </button>
+
+          <!-- Microsoft Entra -->
+          <button type="button" class="btn-base btn-microsoft" id="btn-microsoft" data-provider="microsoft" aria-label="Continue with Microsoft">
+            <span class="ms-tile" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+            <span class="label">Microsoft</span>
+          </button>
+        </div>
+        <div class="divider"><span></span>or with work email<span></span></div>
+
+        <form id="email-form" novalidate>
+          <div class="email-row">
+            <input type="email" id="entry-email"
+                   placeholder="you@company.com"
+                   autocomplete="email"
+                   spellcheck="false"
+                   required
+                   class="email-input"
+                   aria-label="Work email">
+            <button type="submit" class="btn-continue" id="btn-email-continue">
+              Continue
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </form>
+
+        <p class="legal">
+          By continuing you agree to Improvado's
+          <a href="https://improvado.io/terms" target="_blank" rel="noopener noreferrer">Terms</a> and
+          <a href="https://improvado.io/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+        </p>
+      </div>
+
+      <!-- ──────────────────────────────────────────────────────────────────
+           STATE 2: loading
+           ────────────────────────────────────────────────────────────────── -->
+      <div class="state" data-state="loading">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          <span>Finding the right path</span>
+        </div>
+        <h1 class="headline">
+          <span class="punch" id="loading-punch">Just a moment.</span>
+        </h1>
+
+        <div class="loading-stack">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <div class="phase-list">
+            <div class="phase-row" data-active="false" data-done="false" data-phase="1">
+              <div class="phase-circle">
+                <span class="phase-num">1</span>
+                <svg class="phase-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+              <div class="phase-title" id="phase-1-title">Validating your identity</div>
+            </div>
+            <div class="phase-row" data-active="false" data-done="false" data-phase="2">
+              <div class="phase-circle">
+                <span class="phase-num">2</span>
+                <svg class="phase-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+              <div class="phase-title">Analyzing your domain</div>
+            </div>
+            <div class="phase-row" data-active="false" data-done="false" data-phase="3">
+              <div class="phase-circle">
+                <span class="phase-num">3</span>
+                <svg class="phase-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+              <div class="phase-title">Routing you to the right team</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ──────────────────────────────────────────────────────────────────
+           STATE 3a: HIGH-ICP — Concierge calendar (custom HubSpot Meetings UI)
+           Replaces the HubSpot iframe with a page-native client that hits
+           api.hubspot.com/meetings-public/v3/book. All markup below the back
+           button is rendered dynamically by mountConcierge() in JS.
+           ────────────────────────────────────────────────────────────────── -->
+      <div class="state" data-state="high-icp">
+        <div class="cc-stack">
+          <div class="concierge" id="concierge" data-cc-state="loading">
+            <!-- Filled in by mountConcierge(slug, identity). Initial loading skeleton -->
+            <div class="cv2-loading"><span class="cv2-spin"></span><div>Finding open times…</div></div>
+          </div>
+          <!-- Back link lives at the bottom-left, kinda close to the Book CTA. -->
+          <button type="button" class="calendar-back cc-back-bottom" data-back="identity-selection">
+            <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Use a different email
+          </button>
+        </div>
+      </div>
+
+      <!-- ──────────────────────────────────────────────────────────────────
+           STATE 3b: MID-ICP — chooser
+           ────────────────────────────────────────────────────────────────── -->
+      <div class="state" data-state="mid-icp">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          <span>Two ways to start</span>
+        </div>
+        <h1 class="headline">
+          <span class="kicker">Choose your fit.</span>
+          <span class="punch">Two ways to start.</span>
+        </h1>
+        <p class="sub">Some teams want a guided walkthrough first. Others want to skip the call and just try the agent.</p>
+
+        <div class="chooser-grid">
+          <article class="chooser-card book">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <h3>Book a 30-min call</h3>
+            <p>An Improvado expert maps your channels, scopes ROI, and walks the agent live.</p>
+            <ul>
+              <li>Tailored channel review</li>
+              <li>Pricing for your spend tier</li>
+              <li class="tentative">Most of our projects require a $20K budget</li>
+            </ul>
+            <button type="button" class="cta" id="mid-icp-book">
+              Book a time
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </article>
+
+          <article class="chooser-card alg">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor" fill-opacity="0.18"/></svg>
+            </div>
+            <h3>Try the AI agent now</h3>
+            <p>Skip the call. Your workspace + agent in about 30 seconds.</p>
+            <ul>
+              <li>Free 14-day trial</li>
+              <li>Connect 1,000+ sources</li>
+              <li>Ask anything in plain English</li>
+            </ul>
+            <button type="button" class="cta" id="mid-icp-alg">
+              Open the agent
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </article>
+        </div>
+
+        <button type="button" class="back-link" data-back="identity-selection">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Use a different email
+        </button>
+      </div>
+
+      <!-- ──────────────────────────────────────────────────────────────────
+           STATE 4a: ALG-OAUTH splash
+           ────────────────────────────────────────────────────────────────── -->
+      <div class="state" data-state="alg-oauth">
+        <div class="alg-card">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            <span id="alg-oauth-provider">via Google · verified</span>
+          </div>
+          <h1 class="headline">
+            <span class="kicker">Setting up your account.</span>
+            <span class="punch">We'll drop you straight in.</span>
+          </h1>
+          <p class="sub">No password needed — your identity is already verified. We're spinning up your workspace right now.</p>
+          <div class="alg-ring" aria-hidden="true"></div>
+          <p style="font-size:13px;color:var(--ink-3);margin:0">
+            If you're not redirected automatically,
+            <a id="alg-oauth-fallback" href="#" style="color:var(--violet-deep);font-weight:600">open the agent →</a>
+          </p>
+        </div>
+        <button type="button" class="back-link" data-back="identity-selection">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Use a different email
+        </button>
+      </div>
+
+      <!-- ──────────────────────────────────────────────────────────────────
+           STATE 4b: ALG-EMAIL password reveal
+           ────────────────────────────────────────────────────────────────── -->
+      <div class="state" data-state="alg-email">
+        <div class="alg-card">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            <span>Almost there · just a password</span>
+          </div>
+          <h1 class="headline">
+            <span class="kicker">Create your workspace.</span>
+            <span class="punch">One password, you're in.</span>
+          </h1>
+          <p class="sub">Your email is verified. Pick a password and we'll create your agent in 30 seconds.</p>
+
+          <div class="email-pill">
+            <span class="em" id="alg-email-display">you@company.com</span>
+            <button type="button" class="change" data-back="identity-selection">Change</button>
+          </div>
+
+          <form id="alg-password-form" novalidate style="display:flex;flex-direction:column;gap:8px">
+            <div class="password-row">
+              <input type="password" id="alg-password" class="pw-input"
+                     placeholder="Create a password"
+                     autocomplete="new-password" minlength="8" required>
+              <button type="button" class="pw-toggle" id="alg-pw-toggle">Show</button>
+            </div>
+            <div class="pw-meter">
+              <span id="pw-len">8+ characters</span>
+              <span id="pw-mix">letters + number</span>
+            </div>
+            <button type="submit" class="btn-continue" id="alg-email-submit" style="margin-top:6px">
+              Create account & open agent
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </form>
+        </div>
+        <button type="button" class="back-link" data-back="identity-selection">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Use a different email
+        </button>
+      </div>
+
+    </div><!-- /right-mid -->
+
+    <div class="right-foot">
+      <!-- Sign-in lives here (bottom-right of right panel, all states). -->
+      <div class="right-signin">
+        <span>Have an account?</span>
+        <a href="https://report.improvado.io/login">Sign in →</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   /talk-to-an-expert v3 — state machine (preview / simulation)
+   Mirrors v2's behavior; new shell, full-width HIGH-ICP calendar.
+   ════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Endpoints. All three OAuth start URLs are live as of 2026-05-19 (Ilya
+     shipped /register-agency/{linkedin,microsoft}/start/ — Google was
+     already live). LinkedIn has a different personal-email policy in DTS:
+     personal addresses are accepted because LinkedIn accounts are
+     inherently personal-email-backed.
+     ────────────────────────────────────────────────────────────────────── */
+  var DTS_GOOGLE    = 'https://report.improvado.io/api/dts/v2/register-agency/google/start/?bv=talk-to-an-expert&next=/api/dts/v2/post-signup-routing';
+  var DTS_LINKEDIN  = 'https://report.improvado.io/api/dts/v2/register-agency/linkedin/start/?bv=talk-to-an-expert&next=/api/dts/v2/post-signup-routing';
+  var DTS_MICROSOFT = 'https://report.improvado.io/api/dts/v2/register-agency/microsoft/start/?bv=talk-to-an-expert&next=/api/dts/v2/post-signup-routing';
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Analytics stubs (verbatim from signup-v20.html lines 156-164).
+     Stub-and-log here; in PROD swap for window.dataLayer.push + _hsq.push.
+     Defined HERE so click handlers below can reference them in the same
+     IIFE scope. (Bug 2026-05-19: callsites added without stubs → ReferenceError.)
+     ────────────────────────────────────────────────────────────────────── */
+  function hubspotTrack(eventName, props) {
+    if (typeof console !== 'undefined') console.log('[v20:hubspot]', eventName, props || {});
+  }
+  function ga4Track(eventName, props) {
+    if (typeof console !== 'undefined') console.log('[v20:ga4]', eventName, props || {});
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Segment → state + calendar slug
+     Same SEGMENT_MAP as v2 — verbatim, so swapping shells doesn't change
+     routing behavior. The 4 high-ICP slugs are pinned to the prod
+     register-talk-to-an-expert page (artifacts/register-talk-to-an-expert-
+     2026-05-18.html lines 375–389).
+     ────────────────────────────────────────────────────────────────────── */
+  var SEGMENT_MAP = {
+    'Enterprise Demo':   { state: 'high-icp', calendar: 'tz-branch' },
+    'Enterprise':        { state: 'high-icp', calendar: 'https://hs.improvado.io/meetings/improvado/improvado-discovery-call-e' },
+    'Agency Strategic':  { state: 'high-icp', calendar: 'https://hs.improvado.io/meetings/improvado/improvado-discovery-call-a' },
+    'Mid Market Upper':  { state: 'mid-icp',  bookCal: 'https://hs.improvado.io/meetings/improvado/improvado-discovery-call-m'   },
+    'Mid Market Lower':  { state: 'mid-icp',  bookCal: 'https://hs.improvado.io/meetings/improvado/improvado-discovery-call-m-l' },
+    'Agency Commercial': { state: 'mid-icp',  bookCal: 'https://hs.improvado.io/meetings/improvado/improvado-discovery-call-a-c' },
+    'alg-signup':        { state: 'low-icp' },
+    'null':              { state: 'low-icp' }
+  };
+  function classify(seg) {
+    if (['Enterprise Demo','Enterprise','Agency Strategic'].indexOf(seg) !== -1) return 'high';
+    if (['Mid Market Upper','Mid Market Lower','Agency Commercial'].indexOf(seg) !== -1) return 'mid';
+    return 'low';
+  }
+  var TIER_REP = { high: 'Enterprise Demo', mid: 'Mid Market Lower', low: 'alg-signup' };
+  function slugForSegment(seg) {
+    var d = SEGMENT_MAP[seg]; if (!d) return null;
+    if (d.state === 'high-icp') return d.calendar === 'tz-branch' ? getEnterpriseDemoUrl() : d.calendar;
+    if (d.state === 'mid-icp')  return d.bookCal;
+    return null;
+  }
+  function getEnterpriseDemoUrl() {
+    try {
+      var tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+      var eastern = ['America/New_York','America/Detroit','America/Indiana/Indianapolis','America/Kentucky/Louisville','America/Toronto'];
+      if (tz.indexOf('Europe/') === 0 || eastern.indexOf(tz) !== -1)
+        return 'https://meetings.hubspot.com/sherry-ma2/improvado-discovery-demo-call-t';
+    } catch (e) {}
+    return 'https://meetings.hubspot.com/cory-bell1/improvado-discovery-demo-call-p';
+  }
+
+  var FREE_EMAIL_DOMAINS = {
+    'gmail.com':1,'googlemail.com':1,'yahoo.com':1,'yahoo.co.uk':1,
+    'hotmail.com':1,'outlook.com':1,'live.com':1,'msn.com':1,
+    'aol.com':1,'icloud.com':1,'me.com':1,'mac.com':1,
+    'protonmail.com':1,'proton.me':1,'mail.ru':1,'yandex.ru':1
+  };
+
+  /* ──────────────────────────────────────────────────────────────────────
+     DOM refs
+     ────────────────────────────────────────────────────────────────────── */
+  var body = document.body;
+  var states = document.querySelectorAll('.state');
+  var emailInput = document.getElementById('entry-email');
+  var emailForm = document.getElementById('email-form');
+  var btnEmailContinue = document.getElementById('btn-email-continue');
+  var btnGoogle = document.getElementById('btn-google');
+  var btnLinkedIn = document.getElementById('btn-linkedin');
+  var btnMicrosoft = document.getElementById('btn-microsoft');
+
+  var devTier = document.getElementById('dev-tier');
+  var devReset = document.getElementById('dev-reset');
+  var devResolved = document.getElementById('dev-resolved');
+
+  var phaseRows = document.querySelectorAll('.phase-row');
+  var loadingPunch = document.getElementById('loading-punch');
+
+  var conciergeEl = document.getElementById('concierge');
+
+  var midIcpBook = document.getElementById('mid-icp-book');
+  var midIcpAlg  = document.getElementById('mid-icp-alg');
+
+  var algOauthProvider = document.getElementById('alg-oauth-provider');
+  var algOauthFallback = document.getElementById('alg-oauth-fallback');
+
+  var algEmailDisplay = document.getElementById('alg-email-display');
+  var algPasswordForm = document.getElementById('alg-password-form');
+  var algPassword = document.getElementById('alg-password');
+  var algPwToggle = document.getElementById('alg-pw-toggle');
+  var algEmailSubmit = document.getElementById('alg-email-submit');
+  var pwLen = document.getElementById('pw-len');
+  var pwMix = document.getElementById('pw-mix');
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Context carried across states
+     ────────────────────────────────────────────────────────────────────── */
+  var ctx = {
+    provider: null, email: null, firstName: null, lastName: null,
+    fullName: null, segment: null, forcedTier: null, midBookCal: null
+  };
+  var PREVIEW_OAUTH = {
+    google:    { email: 'sasha.demin@example.com', firstName: 'Sasha', lastName: 'Demin' },
+    microsoft: { email: 'sasha@example.com',       firstName: 'Sasha', lastName: 'Demin' },
+    linkedin:  { email: 'sasha.demin@gmail.com',   firstName: 'Sasha', lastName: 'Demin' }
+  };
+  function deriveNameFromEmail(email) {
+    var local = (email || '').split('@')[0] || '';
+    if (!local || /\d{3,}/.test(local)) return { firstName: null, lastName: null };
+    var parts = local.split(/[._-]/).filter(Boolean);
+    function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : null; }
+    if (parts.length >= 2) return { firstName: cap(parts[0]), lastName: cap(parts[1]) };
+    if (parts.length === 1 && parts[0].length >= 2) return { firstName: cap(parts[0]), lastName: null };
+    return { firstName: null, lastName: null };
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────
+     State machine
+     ────────────────────────────────────────────────────────────────────── */
+  function setState(name) {
+    states.forEach(function (s) { s.classList.toggle('active', s.dataset.state === name); });
+    body.setAttribute('data-state', name);
+    // Reset BOTH window AND .right-mid scroll — the right column has
+    // overflow-y: auto so it keeps its own scrollTop across state changes
+    // (e.g. user scrolls calendar → picks slot → booked card was hidden
+    //  off-screen at the previous scrollTop). Force top.
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+    var rm = document.querySelector('.right-mid');
+    if (rm) rm.scrollTop = 0;
+  }
+  function setDevResolved(seg, slug) {
+    if (!devResolved) return;
+    if (!seg) { devResolved.hidden = true; return; }
+    var tz = '';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+    var slugShort = slug ? slug.replace(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\//, '').replace(/\?.*$/, '') : '—';
+    devResolved.textContent = seg + ' · ' + slugShort + (tz ? ' · ' + tz : '');
+    devResolved.hidden = false;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Concierge calendar — custom client for HubSpot Meetings Public API
+     Spec: docs/superpowers/specs/2026-05-19-talk-to-an-expert-calendar-design.md
+     Probe:  algorithms/.../book_a_demo_widget/probe_notes.md (W7)
+     Endpoints (all unauthenticated, CORS-allowed from any origin):
+       GET  api.hubspot.com/meetings-public/v3/book?slug=<owner>/<slug>
+       POST api.hubspot.com/meetings-public/v3/book                  ← creates the meeting
+       POST api.hubspot.com/meetings-public/v2/email/validate        ← used by HubSpot, unused here
+     ══════════════════════════════════════════════════════════════════════ */
+
+  // ┌────────────────────────────────────────────────────────────────────┐
+  // │  STUB_BOOKING = true  → bookSlot() logs payload, shows fake-booked  │
+  // │  STUB_BOOKING = false → POSTs to HubSpot for real (writes CRM).     │
+  // │  Default TRUE for local visual smoke; flip to FALSE only when       │
+  // │  Sasha approves end-to-end booking against the 4 prod slugs.        │
+  // └────────────────────────────────────────────────────────────────────┘
+  var STUB_BOOKING = true;
+
+  // Per-slug owner info — drives the hero copy.
+  //   role: the "Meet with X" label. Use the rep's NAME when we know them
+  //         (group calendars with a single owner: -t/-p), and a role
+  //         descriptor for round-robin slugs where we can't predict the
+  //         specific person ahead of time.
+  //   title: optional secondary label (currently unused in the rendered
+  //          hero, kept for future use if we want a "Sherry Ma · Senior
+  //          Solutions Engineer" 2-liner).
+  // Verified against W1 probe (PROBE_REPORT.md §3.0):
+  //   ROUND_ROBIN_CALENDAR slugs → role descriptor (no name)
+  //   GROUP_CALENDAR slugs (sherry-ma2 / cory-bell1) → owner name
+  var SLUG_OWNER_MAP = {
+    'improvado/improvado-discovery-call-e':       { role: 'your Improvado AE',           title: 'Account Executive' },
+    'improvado/improvado-discovery-call-a':       { role: "Improvado's Agency Partner",  title: 'Agency Partnerships' },
+    'improvado/improvado-discovery-call-m':       { role: 'your Improvado AE',           title: 'Account Executive' },
+    'improvado/improvado-discovery-call-m-l':     { role: 'your Improvado AE',           title: 'Account Executive' },
+    'improvado/improvado-discovery-call-a-c':     { role: "Improvado's Agency Partner",  title: 'Agency Partnerships' },
+    'sherry-ma2/improvado-discovery-demo-call-t': { role: 'Sherry Ma',                   title: 'Senior Solutions Engineer' },
+    'cory-bell1/improvado-discovery-demo-call-p': { role: 'Cory Bell',                   title: 'Senior Solutions Engineer' }
+  };
+  function ownerFromSlug(apiSlug) {
+    return SLUG_OWNER_MAP[apiSlug] || { role: 'an Improvado expert', title: null };
+  }
+
+  // Render a HubSpot duration (ms) as a human-readable string for the copy.
+  //   1800000 → "30-minute", 2700000 → "45-minute", 3600000 → "1 hour"
+  function humanDuration(ms) {
+    var min = Math.round((ms || 0) / 60000);
+    if (min === 60) return '1 hour';
+    if (min > 0) return min + '-minute';
+    return '';
+  }
+
+  // Convert a SEGMENT_MAP url (hs.improvado.io/meetings/<owner>/<slug>
+  // or meetings.hubspot.com/<owner>/<slug>) to the "<owner>/<slug>" the
+  // public API expects.
+  function urlToApiSlug(url) {
+    if (!url) return null;
+    var stripped = url.replace(/^https?:\/\/[^/]+\//, '').replace(/^meetings\//, '');
+    var parts = stripped.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    return parts.slice(-2).join('/');
+  }
+
+  // Detect user's tz via Intl; default to America/Los_Angeles (PST/PDT) when
+  // detection fails. Improvado HQ is West Coast — most reps are too, so PST
+  // is the safest "we don't know yet" default for booking-flow copy.
+  function browserTz() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles'; }
+    catch (e) { return 'America/Los_Angeles'; }
+  }
+  function tzAbbrev(tz, ms) {
+    try {
+      var p = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+        .formatToParts(new Date(ms || Date.now()));
+      var n = p.find(function (x) { return x.type === 'timeZoneName'; });
+      return n ? n.value : tz;
+    } catch (e) { return tz; }
+  }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  // Y-M-D bucket in the user's tz (for grouping slots into days).
+  function tzDateKey(ms, tz) {
+    try {
+      var p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+        .formatToParts(new Date(ms));
+      var y = p.find(function (x) { return x.type === 'year'; }).value;
+      var m = p.find(function (x) { return x.type === 'month'; }).value;
+      var d = p.find(function (x) { return x.type === 'day'; }).value;
+      return y + '-' + m + '-' + d;
+    } catch (e) {
+      var dt = new Date(ms);
+      return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+    }
+  }
+  function weekdayName(ms, tz) {
+    try { return new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long' }).format(new Date(ms)); }
+    catch (e) { return ''; }
+  }
+  function monthDay(ms, tz) {
+    try { return new Intl.DateTimeFormat('en-US', { timeZone: tz, month: 'short', day: 'numeric' }).format(new Date(ms)); }
+    catch (e) { return ''; }
+  }
+  function fmtTime(ms, tz) {
+    // 12-hour with am/pm if afternoon; bare hh:mm if morning, matching mockup style.
+    try {
+      var dt = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true })
+        .formatToParts(new Date(ms));
+      var hh = dt.find(function (x) { return x.type === 'hour'; }).value;
+      var mm = dt.find(function (x) { return x.type === 'minute'; }).value;
+      var ap = dt.find(function (x) { return x.type === 'dayPeriod'; }).value.toUpperCase();
+      // Morning slots: "9:30" — afternoon slots: "2:00 PM" (matches concierge-v2 mockup)
+      return ap === 'AM' ? (parseInt(hh, 10) + ':' + mm) : (parseInt(hh, 10) + ':' + mm + ' ' + ap);
+    } catch (e) {
+      var d = new Date(ms);
+      return d.getHours() + ':' + pad(d.getMinutes());
+    }
+  }
+
+  function groupByDay(slots, tz) {
+    var today = tzDateKey(Date.now(), tz);
+    var tomorrow = tzDateKey(Date.now() + 86400000, tz);
+    var buckets = {};
+    var order = [];
+    slots.forEach(function (s) {
+      var ms = s.startMillisUtc;
+      var key = tzDateKey(ms, tz);
+      if (!buckets[key]) {
+        buckets[key] = { dayKey: key, anyMs: ms, times: [] };
+        order.push(key);
+      }
+      buckets[key].times.push({ ms: ms, endMs: s.endMillisUtc, label: fmtTime(ms, tz) });
+    });
+    return order.map(function (k) {
+      var b = buckets[k];
+      var label = k === today ? 'Today'
+                : k === tomorrow ? 'Tomorrow'
+                : weekdayName(b.anyMs, tz);
+      return { dayKey: k, label: label, dateStr: monthDay(b.anyMs, tz), times: b.times };
+    });
+  }
+
+  function dlPush(payload) {
+    try { window.dataLayer = window.dataLayer || []; window.dataLayer.push(payload); } catch (e) {}
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  // Concierge module-local state (single calendar mounted at a time)
+  var ccState = null;
+
+  function fallbackUrl(originalUrl, identity) {
+    var base = originalUrl || '';
+    var qs = [];
+    if (identity) {
+      if (identity.email)     qs.push('email=' + encodeURIComponent(identity.email));
+      if (identity.firstName) qs.push('firstName=' + encodeURIComponent(identity.firstName));
+      if (identity.lastName)  qs.push('lastName='  + encodeURIComponent(identity.lastName));
+    }
+    return base + (qs.length ? (base.indexOf('?') === -1 ? '?' : '&') + qs.join('&') : '');
+  }
+
+  function showLoading() {
+    conciergeEl.setAttribute('data-cc-state', 'loading');
+    conciergeEl.innerHTML = '<div class="cv2-loading"><span class="cv2-spin"></span><div>Finding open times…</div></div>';
+  }
+
+  function showError(message, identity) {
+    conciergeEl.setAttribute('data-cc-state', 'error');
+    var href = fallbackUrl(ccState && ccState.originalUrl, identity);
+    conciergeEl.innerHTML =
+      '<div class="cv2-error"><strong>Couldn\'t load the calendar.</strong><br>' +
+      escHtml(message || '') + '<br><br>' +
+      '<a href="' + escHtml(href) + '" target="_blank" rel="noopener noreferrer">Open the booking page in a new tab →</a></div>';
+  }
+
+  function showEmpty(identity) {
+    conciergeEl.setAttribute('data-cc-state', 'error');
+    var href = fallbackUrl(ccState && ccState.originalUrl, identity);
+    conciergeEl.innerHTML =
+      '<div class="cv2-empty">No open slots in the next two weeks — ' +
+      '<a href="' + escHtml(href) + '" target="_blank" rel="noopener noreferrer">see HubSpot\'s full availability →</a></div>';
+  }
+
+  function showBooked(identity, slot) {
+    // Trace-log so we can verify this codepath ran (debug aid 2026-05-19).
+    try { console.log('[Concierge] showBooked fired', { slot: slot, email: identity && identity.email }); } catch (e) {}
+    if (!conciergeEl) { try { console.warn('[Concierge] conciergeEl missing at showBooked'); } catch (e) {} return; }
+    if (!slot || !slot.ms) { try { console.warn('[Concierge] showBooked missing slot.ms — using now()'); } catch (e) {} slot = { ms: Date.now() }; }
+
+    conciergeEl.setAttribute('data-cc-state', 'booked');
+    // Reset scroll — user may have scrolled the right-mid down inside the
+    // calendar to click a slot; without this, the booked card lands hidden
+    // off-screen at the bottom.
+    var rmsb = document.querySelector('.right-mid');
+    if (rmsb) rmsb.scrollTop = 0;
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+
+    var tz = browserTz();
+    var when = weekdayName(slot.ms, tz) + ' ' + monthDay(slot.ms, tz) + ' · ' + fmtTime(slot.ms, tz) + ' ' + tzAbbrev(tz, slot.ms);
+    var emailEsc = escHtml(identity && identity.email || 'your inbox');
+    var firstName = identity && identity.firstName;
+    var greeting = firstName ? ('Thanks, ' + escHtml(firstName) + ' — you\'re booked.') : 'You\'re booked.';
+
+    conciergeEl.innerHTML =
+      '<div class="cv2-booked">' +
+        '<div class="cv2-check" aria-hidden="true">✓</div>' +
+        '<h3>' + greeting + '</h3>' +
+        '<p class="cv2-booked-lede">We\'re excited to talk with you.</p>' +
+        '<div class="cv2-booked-detail">' +
+          '<div class="row"><span class="lbl">When</span><span class="val">' + escHtml(when) + '</span></div>' +
+          '<div class="row"><span class="lbl">Where</span><span class="val">Zoom · link in the invite</span></div>' +
+          '<div class="row"><span class="lbl">Invite</span><span class="val">Sent to <strong>' + emailEsc + '</strong></span></div>' +
+        '</div>' +
+        '<p class="cv2-booked-hint">Check your inbox — the calendar invite usually lands within a minute. ' +
+          'You\'ll get a reminder 24h before. If anything changes, just reply to the invite.</p>' +
+        '<button type="button" class="cv2-booked-cta" data-back="identity-selection">Done</button>' +
+      '</div>';
+
+    // The "Done" button uses data-back so the existing back-link handler
+    // resets state and returns the user to identity-selection. The handler
+    // was registered on page-load via document.querySelectorAll('[data-back]')
+    // and won't auto-pick up dynamically inserted nodes — wire it explicitly.
+    var done = conciergeEl.querySelector('[data-back]');
+    if (done) {
+      done.addEventListener('click', function () {
+        setDevResolved && setDevResolved(null);
+        ctx = { provider: null, email: null, firstName: null, lastName: null,
+                fullName: null, segment: null, forcedTier: ctx.forcedTier || null, midBookCal: null };
+        setState('identity-selection');
+      });
+    }
+  }
+
+  function renderHero() {
+    // Hero composition (post-2026-05-19 redesign):
+    //   - NO eyebrow (green-dot line removed)
+    //   - kicker stays: "We've found a great match."
+    //   - punch: "Meet with <ownerRole>" — uses real owner name for fixed-
+    //     owner slugs (Sherry / Cory), role descriptor for round-robins
+    //   - sub: "Pick a time for a <human-duration> call and a calendar invite
+    //     lands in your inbox immediately." — duration is driven by the
+    //     actual HubSpot link config (45-min discovery, 1-hour demo, etc.)
+    //   - meta card: NO avatar. We don't have reliable rep photos for
+    //     round-robin slugs, and the company logo was misread as a "made-up"
+    //     mark. Just the role/name + chips (duration, Zoom, tz). Cleaner.
+    var b = (ccState && ccState.brand) || {
+      companyName: 'Improvado', ownerRole: 'an Improvado expert', ownerTitle: null,
+      headlineFallback: null, location: 'Zoom', duration: 2700000,
+      durationHuman: '45-minute', durationChip: '45 min'
+    };
+    var tz = browserTz();
+    var tzLabel = tz.replace(/_/g, ' ') + ' · ' + tzAbbrev(tz);
+    var punch = b.headlineFallback || ('Meet with ' + b.ownerRole);
+    var sub = 'Pick a time for a ' + b.durationHuman + ' call and a calendar invite lands in your inbox immediately.';
+    var metaLine = b.ownerTitle
+      ? (escHtml(b.ownerRole) + ' · ' + escHtml(b.ownerTitle))
+      : escHtml(b.ownerRole);
+
+    var headHtml =
+      '<h1 class="cc-h">' +
+        '<span class="kicker">We\'ve found a great match.</span>' +
+        escHtml(punch) +
+      '</h1>' +
+      '<p class="cc-sub">' + escHtml(sub) + '</p>' +
+      '<div class="cv2-hero cv2-hero--noavatar">' +
+        '<div class="cv2-hero-text">' +
+          '<div class="cv2-hero-name">' + metaLine + '</div>' +
+          '<div class="cv2-hero-meta">' +
+            '<span class="cv2-chip">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>' +
+              escHtml(b.durationChip) + '</span>' +
+            '<span class="cv2-chip">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 12l3-2 3 2"/></svg>' +
+              escHtml(b.location) + '</span>' +
+            '<span class="cv2-chip">' + escHtml(tzLabel) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cv2-suggested" id="cc-suggested">' +
+        '<div class="cv2-suggested-head">Suggested times</div>' +
+        '<div class="cv2-suggested-grid" id="cc-suggested-grid"></div>' +
+      '</div>' +
+      '<button type="button" class="cv2-cal-toggle" id="cc-cal-toggle" data-open="false">' +
+        'See other times in calendar' +
+        '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
+      '</button>' +
+      '<div class="cv2-cal-pane" id="cc-cal-pane" data-open="false">' +
+        '<div class="cv2-mini-cal" id="cc-mini-cal"></div>' +
+        '<div class="cv2-day-pane" id="cc-day-pane"></div>' +
+      '</div>' +
+      '<div class="cv2-confirm" id="cc-confirm">' +
+        '<div class="cv2-confirm-info" id="cc-confirm-info"></div>' +
+        '<button type="button" class="cv2-confirm-btn" id="cc-confirm-btn">Book this time →</button>' +
+      '</div>';
+
+    conciergeEl.setAttribute('data-cc-state', 'ready');
+    conciergeEl.innerHTML = headHtml;
+  }
+
+  /* ───── New scrolling-minimized calendar ───── */
+
+  // Pick 5–8 "suggested" slots — spread across Today + Tomorrow when those
+  // exist; else fall back to the first two available days. Use evenly-spaced
+  // sampling within each day so we get morning / midday / afternoon variety
+  // rather than 8-in-a-row at 9:00–11:30.
+  function pickSuggestedSlots(days, max) {
+    max = max || 8;
+    var todayTomorrow = days.filter(function (d) {
+      return d.label === 'Today' || d.label === 'Tomorrow';
+    });
+    var sources = todayTomorrow.length ? todayTomorrow : days.slice(0, 2);
+    if (!sources.length) return [];
+    var perDay = Math.max(1, Math.floor(max / sources.length));
+    var out = [];
+    sources.forEach(function (day) {
+      if (!day.times.length) return;
+      var n = Math.min(perDay, day.times.length);
+      var step = day.times.length / n;
+      for (var i = 0; i < n; i++) {
+        var idx = Math.floor(i * step);
+        var t = day.times[idx];
+        out.push({
+          ms: t.ms, endMs: t.endMs,
+          timeLabel: t.label,
+          dayLabel: day.label,
+          dayKey: day.dayKey
+        });
+      }
+    });
+    return out.slice(0, max);
+  }
+
+  function renderSuggested() {
+    var el = document.getElementById('cc-suggested-grid');
+    if (!el) return;
+    var picks = pickSuggestedSlots(ccState.days || [], 8);
+    if (!picks.length) { el.innerHTML = '<div style="font-size:13px;color:var(--ink-3)">No slots in the next two days — open the calendar below.</div>'; return; }
+    el.innerHTML = picks.map(function (s) {
+      return '<button type="button" class="cv2-suggested-pill cv2-pill" data-ms="' + s.ms + '">' +
+        '<span class="day">' + escHtml(s.dayLabel) + '</span>' +
+        '<span class="time">' + escHtml(s.timeLabel) + '</span>' +
+      '</button>';
+    }).join('');
+  }
+
+  // Mini-month calendar. Highlights days with ≥1 available slot (clickable);
+  // greys out days with no availability. Only renders the month that contains
+  // the currently focused day (typically: first available day on first open).
+  // Render the mini-month grid. `anchorYM` = "YYYY-MM" string controls which
+  // month is displayed. `focusedDayKey` = "YYYY-MM-DD" of the currently-
+  // selected day (highlighted only when it falls in the anchored month).
+  // Prev/next arrows shift the anchor month without changing the selection.
+  function renderMiniCal(anchorYM, focusedDayKey) {
+    var el = document.getElementById('cc-mini-cal');
+    if (!el) return;
+    var ya = parseInt(anchorYM.split('-')[0], 10);
+    var ma = parseInt(anchorYM.split('-')[1], 10);
+    var firstOfMonth = new Date(ya, ma - 1, 1);
+    var startDayDow = firstOfMonth.getDay(); // 0=Sun
+    var leadingBlanks = (startDayDow + 6) % 7; // Monday-first grid
+    var daysInMonth = new Date(ya, ma, 0).getDate();
+    var monthLabel = firstOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    var byKey = {};
+    (ccState.days || []).forEach(function (d) { byKey[d.dayKey] = d; });
+
+    var html = '';
+    html += '<div class="cv2-mini-cal-nav">' +
+      '<button type="button" class="cv2-mini-cal-arrow" id="cc-cal-prev" aria-label="Previous month">' +
+        '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 2 L3 6 L7.5 10 Z"/></svg>' +
+      '</button>' +
+      '<span class="cv2-mini-cal-month">' + escHtml(monthLabel) + '</span>' +
+      '<button type="button" class="cv2-mini-cal-arrow" id="cc-cal-next" aria-label="Next month">' +
+        '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2 L9 6 L4.5 10 Z"/></svg>' +
+      '</button>' +
+    '</div>';
+    html += '<div class="cv2-mini-cal-weekdays">' +
+      ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d){ return '<span>' + d + '</span>'; }).join('') +
+      '</div>';
+    html += '<div class="cv2-mini-cal-grid">';
+    for (var i = 0; i < leadingBlanks; i++) html += '<span class="cv2-mini-cal-day blank"></span>';
+    for (var dnum = 1; dnum <= daysInMonth; dnum++) {
+      var key = ya + '-' + pad(ma) + '-' + pad(dnum);
+      var avail = byKey[key];
+      var classes = 'cv2-mini-cal-day';
+      if (!avail) classes += ' unavail';
+      if (key === focusedDayKey) classes += ' sel';
+      html += '<span class="' + classes + '"' +
+              (avail ? ' data-daykey="' + key + '"' : '') +
+              '>' + dnum + '</span>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  // Bump the anchor month by ±1 and re-render the grid. Focused day stays put
+  // (deselected in the visible grid if it's now in a different month).
+  function shiftMiniCalMonth(delta) {
+    var ym = (ccState.calendarAnchorMonth || (ccState.calendarFocusDay || '').slice(0, 7));
+    if (!ym) return;
+    var y = parseInt(ym.split('-')[0], 10);
+    var m = parseInt(ym.split('-')[1], 10) + delta;
+    while (m < 1)  { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    ccState.calendarAnchorMonth = y + '-' + pad(m);
+    renderMiniCal(ccState.calendarAnchorMonth, ccState.calendarFocusDay);
+  }
+
+  function renderDayPane(dayKey) {
+    var el = document.getElementById('cc-day-pane');
+    if (!el) return;
+    var day = (ccState.days || []).find(function (d) { return d.dayKey === dayKey; });
+    if (!day) { el.innerHTML = '<div style="font-size:13px;color:var(--ink-3)">No slots this day.</div>'; return; }
+    el.innerHTML =
+      '<div class="cv2-day-pane-head">' +
+        '<strong>' + escHtml(day.label + ' · ' + day.dateStr) + '</strong>' +
+        '<span>' + day.times.length + ' slot' + (day.times.length === 1 ? '' : 's') + '</span>' +
+      '</div>' +
+      '<div class="cv2-day-pane-times">' +
+        day.times.map(function (t) {
+          return '<button type="button" class="cv2-pill" data-ms="' + t.ms + '">' + escHtml(t.label) + '</button>';
+        }).join('') +
+      '</div>';
+  }
+
+  function selectCalendarDay(dayKey) {
+    ccState.calendarFocusDay = dayKey;
+    ccState.calendarAnchorMonth = dayKey.slice(0, 7);   // jump to that day's month
+    renderMiniCal(ccState.calendarAnchorMonth, dayKey);
+    renderDayPane(dayKey);
+  }
+
+  function toggleCalendarPane() {
+    var pane = document.getElementById('cc-cal-pane');
+    var btn = document.getElementById('cc-cal-toggle');
+    if (!pane || !btn) return;
+    var open = pane.getAttribute('data-open') === 'true';
+    var next = !open;
+    pane.setAttribute('data-open', String(next));
+    btn.setAttribute('data-open', String(next));
+    btn.firstChild.nodeValue = next ? 'Hide calendar ' : 'See other times in calendar';
+    if (next && (!ccState.days || !ccState.days.length)) return;
+    if (next && !ccState.calendarFocusDay) {
+      // Auto-select first available day on first open
+      selectCalendarDay(ccState.days[0].dayKey);
+    }
+  }
+
+  function setSelectedSlot(slotEl) {
+    // Toggle pill highlight
+    var pills = conciergeEl.querySelectorAll('.cv2-pill');
+    pills.forEach(function (p) { p.classList.remove('sel'); });
+    slotEl.classList.add('sel');
+
+    var ms = parseInt(slotEl.getAttribute('data-ms'), 10);
+    if (!ms) return;
+    ccState.selected = { ms: ms };
+
+    var tz = browserTz();
+    var when = weekdayName(ms, tz) + ' ' + monthDay(ms, tz) + ' · ' + fmtTime(ms, tz) + ' ' + tzAbbrev(tz, ms);
+    var info = document.getElementById('cc-confirm-info');
+    var bar = document.getElementById('cc-confirm');
+    var b = ccState.brand || { durationHuman: '45-minute', location: 'Zoom', ownerRole: 'an Improvado expert' };
+    if (info) info.innerHTML =
+      '<strong>' + escHtml(when) + '</strong>' +
+      '<span class="when">' + escHtml(b.durationHuman) + ' call with ' + escHtml(b.ownerRole) + ' · ' + escHtml(b.location) + ' invite sent on confirm</span>';
+    if (bar) bar.setAttribute('data-visible', 'true');
+
+    dlPush({
+      event: 'meeting_your_info_started',
+      slug: ccState.apiSlug,
+      startMs: ms,
+      organizer: ccState.organizer && ccState.organizer.email
+    });
+  }
+
+  function bookSlot(identity) {
+    if (!ccState || !ccState.selected) return;
+    var btn = document.getElementById('cc-confirm-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Booking…'; }
+
+    var payload = {
+      slug: ccState.apiSlug,
+      duration: ccState.duration || 2700000,
+      startTime: ccState.selected.ms,
+      firstName: identity.firstName || '',
+      lastName: identity.lastName || '',
+      email: identity.email || '',
+      timezone: browserTz(),
+      // The 4 prod slugs all carry 2 optional custom fields. Sending empty
+      // strings matches HubSpot's own formPrefills defaults. Wire actual
+      // values when LinkedIn-OAuth provides contact_linkedin__c (IHT-55849).
+      formFields: {
+        contact_linkedin__c: identity.linkedinUrl || '',
+        how_can_we_help: identity.note || ''
+      },
+      guests: [],
+      locale: 'en'
+    };
+
+    dlPush({ event: 'meeting_your_info_submitted', slug: ccState.apiSlug, startMs: ccState.selected.ms });
+
+    if (STUB_BOOKING) {
+      // eslint-disable-next-line no-console
+      console.log('[Concierge · STUB_BOOKING=true] would POST /meetings-public/v3/book with:', payload);
+      setTimeout(function () {
+        dlPush({ event: 'meeting_booked', slug: ccState.apiSlug, startMs: ccState.selected.ms, stub: true });
+        showBooked(identity, ccState.selected);
+      }, 650);
+      return;
+    }
+
+    fetch('https://api.hubspot.com/meetings-public/v3/book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) throw new Error('book failed: ' + res.status);
+      return res.json();
+    }).then(function (data) {
+      dlPush({ event: 'meeting_booked', slug: ccState.apiSlug, startMs: ccState.selected.ms, status: data && data.status });
+      showBooked(identity, ccState.selected);
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Book this time →'; }
+      showError(err && err.message || 'Booking failed.', identity);
+    });
+  }
+
+  function wireConcierge(identity) {
+    conciergeEl.addEventListener('click', function (e) {
+      // 1. Mini-cal month nav (prev / next) — handle before day-click so the
+      //    arrow buttons don't get mis-classified as anything else.
+      var arrow = e.target.closest && e.target.closest('.cv2-mini-cal-arrow');
+      if (arrow) {
+        shiftMiniCalMonth(arrow.id === 'cc-cal-prev' ? -1 : 1);
+        return;
+      }
+      // 2. Mini-cal day click — re-render right pane for that day
+      var calDay = e.target.closest && e.target.closest('.cv2-mini-cal-day[data-daykey]');
+      if (calDay && !calDay.classList.contains('unavail')) {
+        selectCalendarDay(calDay.getAttribute('data-daykey'));
+        return;
+      }
+      // 3. Calendar toggle — expand / collapse the pane
+      var toggle = e.target.closest && e.target.closest('#cc-cal-toggle');
+      if (toggle) { toggleCalendarPane(); return; }
+      // 3. Slot pill (either in suggested grid OR day pane) — select
+      var pill = e.target.closest && e.target.closest('.cv2-pill');
+      if (pill) { setSelectedSlot(pill); return; }
+      // 4. Book button
+      if (e.target && e.target.id === 'cc-confirm-btn') {
+        bookSlot(identity);
+        return;
+      }
+    });
+  }
+
+  // HubSpot Meetings Public API requires TWO endpoints + 5 query params.
+  // Empirically validated 2026-05-19 against the 4 production slugs — calling
+  // /v3/book with only ?slug=... returns HTTP 500. See:
+  // /Users/alexxela/code/improvado/artifacts/concierge-probe/PROBE_REPORT.md §8 ¶1.
+  //   1. GET /v3/book?slug+now+includeInactiveLink+location+timezone → config
+  //      (durations, formFields, brandingMetadata, customParams.displayInfo)
+  //   2. GET /v3/book/availability-page?slug+monthOffset+timezone → slot list
+  function fetchAvailability(apiSlug) {
+    var tz = browserTz();
+    var now = Date.now();
+    // HubSpot's anti-bot returns 483 (or 404) unless `location` is the host
+    // their own meetings.hubspot.com embed sends. Hardcode it — empirically
+    // verified 2026-05-19 (localhost:8088 → 483, meetings.hubspot.com → 200).
+    var loc = 'meetings.hubspot.com';
+    var qs1 = 'slug=' + encodeURIComponent(apiSlug)
+            + '&now=' + now
+            + '&includeInactiveLink=true'
+            + '&location=' + encodeURIComponent(loc)
+            + '&timezone=' + encodeURIComponent(tz);
+    var qs2 = 'slug=' + encodeURIComponent(apiSlug)
+            + '&monthOffset=0'
+            + '&timezone=' + encodeURIComponent(tz);
+    var bookUrl = 'https://api.hubspot.com/meetings-public/v3/book?' + qs1;
+    var availUrl = 'https://api.hubspot.com/meetings-public/v3/book/availability-page?' + qs2;
+    var opts = { method: 'GET', headers: { 'Accept': 'application/json' } };
+    return Promise.all([fetch(bookUrl, opts), fetch(availUrl, opts)])
+      .then(function (resps) {
+        if (!resps[0].ok) throw new Error('availability fetch failed: ' + resps[0].status);
+        if (!resps[1].ok) throw new Error('slot fetch failed: ' + resps[1].status);
+        return Promise.all([resps[0].json(), resps[1].json()]);
+      })
+      .then(function (jsons) {
+        // Merge: config from /book, slots from /availability-page
+        var config = jsons[0] || {};
+        var avail = jsons[1] || {};
+        config.linkAvailability = avail.linkAvailability || config.linkAvailability;
+        return config;
+      });
+  }
+
+  function mountConcierge(slugOrUrl, identity) {
+    if (!conciergeEl) return;
+    var apiSlug = urlToApiSlug(slugOrUrl);
+    ccState = {
+      apiSlug: apiSlug,
+      originalUrl: slugOrUrl,
+      duration: 1800000,
+      organizer: null,
+      days: [],
+      visibleCount: 0,
+      selected: null
+    };
+    showLoading();
+    if (!apiSlug) {
+      showError('Missing calendar slug.', identity);
+      return;
+    }
+    fetchAvailability(apiSlug)
+      .then(function (data) {
+        // Real HubSpot Meetings response (verified 2026-05-19): no `linkInfo`,
+        // no rep organizer name/photo. Config lives under `customParams.*` and
+        // `brandingMetadata.*` — see PROBE_REPORT.md §6.1 for the full drift map.
+        var cp = (data && data.customParams) || {};
+        var brand = (data && data.brandingMetadata) || {};
+        var disp = (cp.displayInfo) || {};
+
+        // Per-slug duration (45 min for -e/-a, 60 min for -t/-p; not 30).
+        var durations = cp.durations && cp.durations.length ? cp.durations : [2700000];
+        ccState.duration = durations[0];
+
+        // Resolve owner from slug (round-robin → role descriptor; group → name).
+        // Public meetings API never exposes the owner — we map it client-side.
+        var owner = ownerFromSlug(apiSlug);
+        ccState.brand = {
+          companyName: brand.companyName || 'Improvado',
+          ownerRole: owner.role,                    // "Sherry Ma" or "your Improvado AE"
+          ownerTitle: owner.title,                  // for future use
+          headlineFallback: disp.headline || null,  // HubSpot per-link override (rarely set)
+          location: cp.location || 'Zoom',
+          duration: ccState.duration,
+          durationHuman: humanDuration(ccState.duration),  // "1 hour" / "45-minute"
+          durationChip: Math.round(ccState.duration / 60000) + ' min' // "60 min" for the chip row
+        };
+        // Keep organizer slot for downstream code paths (success screen),
+        // but mark it empty — the rep is only revealed by the booking POST response.
+        ccState.organizer = null;
+
+        var avail = ((data.linkAvailability || {}).linkAvailabilityByDuration || {})[String(ccState.duration)];
+        var slots = (avail && avail.availabilities) || [];
+        if (!slots.length) {
+          renderHero();
+          ccState.days = [];
+          showEmpty(identity);
+          return;
+        }
+        ccState.days = groupByDay(slots, browserTz());
+        renderHero();
+        renderSuggested();             // top: 8 suggested pills (Today/Tomorrow spread)
+        // Calendar pane stays collapsed by default; first open auto-selects day 0.
+        wireConcierge(identity);
+        dlPush({
+          event: 'meeting_calendar_loaded',
+          slug: apiSlug,
+          // Public API does not expose the rep — round-robin assignment
+          // happens on POST /v3/book, surfaced only on the booked event.
+          organizer: null,
+          duration: ccState.duration,
+          dayCount: ccState.days.length,
+          slotCount: slots.length
+        });
+      })
+      .catch(function (err) {
+        showError(err && err.message || 'Unable to reach the booking service.', identity);
+      });
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Loading-state animator (3 phases ~3s total)
+     ────────────────────────────────────────────────────────────────────── */
+  var loadingTimer = null;
+  function runLoading(onDone) {
+    phaseRows.forEach(function (r) { r.dataset.active = 'false'; r.dataset.done = 'false'; });
+    document.documentElement.style.setProperty('--bar-width', '0%');
+    var durations = [900, 1100, 900];
+    var widths = ['33%', '70%', '100%'];
+    function step(i) {
+      if (i >= phaseRows.length) {
+        phaseRows[phaseRows.length - 1].dataset.active = 'false';
+        phaseRows[phaseRows.length - 1].dataset.done = 'true';
+        document.documentElement.style.setProperty('--bar-width', '100%');
+        if (typeof onDone === 'function') setTimeout(onDone, 380);
+        return;
+      }
+      for (var j = 0; j < i; j++) {
+        phaseRows[j].dataset.active = 'false';
+        phaseRows[j].dataset.done = 'true';
+      }
+      phaseRows[i].dataset.active = 'true';
+      document.documentElement.style.setProperty('--bar-width', widths[i]);
+      loadingTimer = setTimeout(function () { step(i + 1); }, durations[i]);
+    }
+    step(0);
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Router (simulated; dev-dropdown wins, falls back to domain heuristic)
+     ────────────────────────────────────────────────────────────────────── */
+  // Domain heuristic (fallback when real router fails OR no dev tier set
+  // AND email path picks a tier offline).
+  function heuristicRouter(email) {
+    var dom = (email || '').split('@')[1] || '';
+    if (!dom) return 'null';
+    if (FREE_EMAIL_DOMAINS[dom]) return 'alg-signup';
+    if (/(kraftheinz|abbvie|publicis|omnicom|nestle)\./i.test(dom)) return 'Enterprise Demo';
+    if (/(cocacola|fedex|fortune)\./i.test(dom)) return 'Enterprise';
+    if (/(omd|wpp|havas|dentsu)\./i.test(dom)) return 'Agency Strategic';
+    if (/agency|media|advert|partners/i.test(dom)) return 'Agency Commercial';
+    if (/(walmart|target|costco|kroger)\./i.test(dom)) return 'Mid Market Upper';
+    if (dom.split('.').length === 2 && dom.length < 14) return 'Mid Market Lower';
+    return 'alg-signup';
+  }
+
+  // REAL router — calls the production endpoints used by the Webflow page.
+  // Verified contract (2026-05-19 curl):
+  //   POST /r7t8x4/predict   {"q8x":"<email>"} → {final_label: "ICP"|"Mid-ICP"|"Non-ICP", ...}
+  //   POST /px7mq9/segment   {"q8x":"<email>"} → {result: "Enterprise"|"alg-signup"|...}
+  //   NOTE: field name is `q8x` not `email`; LLM returns coarse 3-class label,
+  //         segment router returns the full 8-segment v8.8 string.
+  //
+  // Timing notes:
+  //   - LLM router p50 ~1.5s, p99 ~5s (Nike took 4.6s in our 2026-05-19 probe).
+  //     Bumped timeout to 8s so high-information queries don't abort.
+  //   - Segment router p99 <500ms.
+  //
+  // Default fallback when BOTH routers fail (network error / CORS blocked /
+  // both 5xx): 'Mid Market Lower' → MID-ICP chooser (user picks book-a-call
+  // OR try-agent). Was 'alg-signup' which silently dumped users to ALG —
+  // bad UX when we genuinely don't know the segment.
+  //
+  // NOTE for local dev: api.marketing-checks.tools.improvado.io CORS allowlist
+  // rejects http://localhost:* origins (HTTP 400 "Disallowed CORS origin" on
+  // preflight). So on localhost BOTH routers will fail at preflight and the
+  // user lands on the MID-ICP fallback. To test real classification, deploy
+  // (or open via lp.improvado.io / improvado.io origin).
+  var LLM_TO_SEGMENT = {            // map LLM coarse → representative v8.8 segment
+    'ICP': 'Enterprise Demo',       // pick HIGH-ICP rep (TZ-branch picks the rep)
+    'Mid-ICP': 'Mid Market Lower',  // pick MID-ICP rep
+    'Non-ICP': 'alg-signup'
+  };
+  var ROUTER_DEFAULT_FALLBACK = 'Mid Market Lower';  // MID-ICP, not ALG.
+  // Rewrite `test*@domain.com` → `hello@domain.com` when the bypass flag is on.
+  // Only affects the router request body; ctx.email (used downstream for
+  // HubSpot booking and DTS signup) is NOT modified — Sasha's signup
+  // convention of using test@* still flows through to the real systems.
+  function maybeBypassTestEmail(email) {
+    if (!window.__bypassTestEmail) return email;
+    var m = String(email || '').match(/^test[._\-+]?[a-z0-9]*@([^@\s]+)$/i);
+    if (!m) return email;
+    var rewritten = 'hello@' + m[1];
+    console.log('[router] BYPASS: "' + email + '" → "' + rewritten + '" (for routing only)');
+    return rewritten;
+  }
+  function realRouter(email) {
+    var routerEmail = maybeBypassTestEmail(email);
+    var body = JSON.stringify({ q8x: routerEmail });
+    var headers = { 'Content-Type': 'application/json' };
+    var ac1 = new AbortController(), t1 = setTimeout(function(){ ac1.abort(); }, 8000);
+    return fetch('https://marketing-checks.tools.improvado.io/r7t8x4/predict', {
+      method: 'POST', headers: headers, body: body, signal: ac1.signal
+    }).then(function(r){ clearTimeout(t1); return r.ok ? r.json() : Promise.reject('llm '+r.status); })
+      .then(function(d){
+        var label = d.final_label || d.label || null;
+        var seg = LLM_TO_SEGMENT[label] || label || null;
+        console.log('[router] /r7t8x4/predict →', d, '⇒ segment:', seg);
+        return seg || Promise.reject('no usable label in llm response');
+      })
+      .catch(function(err){
+        console.warn('[router] LLM router failed, falling back to /px7mq9/segment:', err);
+        var ac2 = new AbortController(), t2 = setTimeout(function(){ ac2.abort(); }, 2000);
+        return fetch('https://marketing-checks.tools.improvado.io/px7mq9/segment', {
+          method: 'POST', headers: headers, body: body, signal: ac2.signal
+        }).then(function(r){ clearTimeout(t2); return r.ok ? r.json() : Promise.reject('seg '+r.status); })
+          .then(function(d){
+            var seg = d.result || d.segment || null;
+            console.log('[router] /px7mq9/segment →', d, '⇒ segment:', seg);
+            return seg || ROUTER_DEFAULT_FALLBACK;
+          })
+          .catch(function(err2){
+            console.warn('[router] both routers failed, defaulting to MID-ICP (' + ROUTER_DEFAULT_FALLBACK + '):', err2);
+            console.warn('[router] note: CORS rejects localhost — this is expected when testing the artifact via http://localhost:8088. Deploy or test from *.improvado.io to exercise real classification.');
+            return ROUTER_DEFAULT_FALLBACK;
+          });
+      });
+  }
+
+  // Pick router strategy:
+  //   - dev dropdown tier set → simulator override (instant, deterministic)
+  //   - else → real router (returns Promise)
+  // Returns a Promise either way for uniform handling.
+  function resolveSegment(email) {
+    if (ctx.forcedTier && ctx.forcedTier !== 'auto') {
+      var seg = TIER_REP[ctx.forcedTier] || 'alg-signup';
+      console.log('[router] dev override → forcedTier=' + ctx.forcedTier + ' → segment:', seg);
+      return Promise.resolve(seg);
+    }
+    if (!email || email.indexOf('@') === -1) {
+      return Promise.resolve('alg-signup');
+    }
+    return realRouter(email);
+  }
+
+  function routeAfterLoading() {
+    resolveSegment(ctx.email).then(function(seg) {
+      ctx.segment = seg;
+      var tier = classify(seg);
+      var slug = slugForSegment(seg);
+      setDevResolved(seg, slug);
+      console.log('[route] segment=' + seg + ' → tier=' + tier + ' → slug=' + (slug || 'none'));
+      if (tier === 'high') {
+        setState('high-icp');
+        mountConcierge(slug, ctx);
+      } else if (tier === 'mid') {
+        ctx.midBookCal = SEGMENT_MAP[seg] && SEGMENT_MAP[seg].bookCal;
+        setState('mid-icp');
+      } else {
+        transitionToAlg();
+      }
+    });
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Entry: start the flow for a given provider
+     ────────────────────────────────────────────────────────────────────── */
+  function startFlow(provider, emailOverride) {
+    ctx.provider = provider;
+    if (provider !== 'email' && PREVIEW_OAUTH[provider]) {
+      var ident = PREVIEW_OAUTH[provider];
+      ctx.email = ident.email;
+      ctx.firstName = ident.firstName;
+      ctx.lastName = ident.lastName;
+      ctx.fullName = ident.firstName + (ident.lastName ? ' ' + ident.lastName : '');
+    } else {
+      ctx.email = (emailOverride || (emailInput.value || '').trim().toLowerCase());
+      if (provider === 'email' && !ctx.email) return;
+      var d = deriveNameFromEmail(ctx.email);
+      ctx.firstName = d.firstName;
+      ctx.lastName = d.lastName;
+      ctx.fullName = (d.firstName || d.lastName) ? ((d.firstName || '') + (d.lastName ? ' ' + d.lastName : '')) : null;
+    }
+    if (loadingPunch) {
+      loadingPunch.textContent = ctx.firstName ? ('Just a moment, ' + ctx.firstName + '.') : 'Just a moment.';
+    }
+    setState('loading');
+    runLoading(function () { routeAfterLoading(); });
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Wire STATE 1 buttons
+     ────────────────────────────────────────────────────────────────────── */
+  // Real OAuth — same DTS endpoints the production /signup page uses.
+  // Each button routes to /api/dts/v2/register-agency/<provider>/start/ which
+  // (a) does the OAuth handshake, (b) creates an Improvado agency on success,
+  // (c) bounces to PostSignupRoutingView, which 302s to AE calendar / chooser /
+  // ALG agent based on segment classification.
+  // Simulator only kicks in when the dev dropdown has a forced tier — that's
+  // for testing UI states without leaving the page.
+  function isDevSimulating() {
+    return ctx.forcedTier && ctx.forcedTier !== 'auto';
+  }
+  btnGoogle.addEventListener('click', function () {
+    ga4Track('signup_google_click', { bv: 'talk-to-an-expert' });
+    hubspotTrack('signup_google_click');
+    if (isDevSimulating()) { startFlow('google'); return; }
+    window.location.assign(DTS_GOOGLE);
+  });
+  btnMicrosoft.addEventListener('click', function () {
+    ga4Track('signup_microsoft_click', { bv: 'talk-to-an-expert' });
+    hubspotTrack('signup_microsoft_click');
+    if (isDevSimulating()) { startFlow('microsoft'); return; }
+    window.location.assign(DTS_MICROSOFT);
+  });
+  btnLinkedIn.addEventListener('click', function () {
+    ga4Track('signup_linkedin_click', { bv: 'talk-to-an-expert' });
+    hubspotTrack('signup_linkedin_click');
+    if (isDevSimulating()) { startFlow('linkedin'); return; }
+    window.location.assign(DTS_LINKEDIN);
+  });
+
+  emailForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = (emailInput.value || '').trim().toLowerCase();
+    if (v.indexOf('@') === -1) {
+      emailInput.setAttribute('aria-invalid', 'true');
+      emailInput.focus();
+      return;
+    }
+    emailInput.removeAttribute('aria-invalid');
+    btnEmailContinue.disabled = true;
+    ga4Track('signup_email_submit', { bv: 'talk-to-an-expert' });
+    hubspotTrack('signup_email_submit');
+    startFlow('email', v);
+    setTimeout(function () { btnEmailContinue.disabled = false; }, 4500);
+  });
+
+  /* ──────────────────────────────────────────────────────────────────────
+     Mid-ICP CTAs
+     ────────────────────────────────────────────────────────────────────── */
+  midIcpBook.addEventListener('click', function () {
+    var url = ctx.midBookCal || 'https://hs.improvado.io/meetings/improvado/improvado-discovery-call-m';
+    setDevResolved(ctx.segment || 'Mid Market', url);
+    setState('high-icp');
+    mountConcierge(url, ctx);
+  });
+  midIcpAlg.addEventListener('click', function () { transitionToAlg(); });
+
+  /* ──────────────────────────────────────────────────────────────────────
+     ALG transitions — OAuth path → STATE 4a; email path → STATE 4b
+     ────────────────────────────────────────────────────────────────────── */
+  function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+  function transitionToAlg() {
+    // Route to the SAME production ALG signup page (report.improvado.io/signup/)
+    // the rest of the funnel uses — DTS allauth handles password capture +
+    // workspace creation + agent provisioning identically across surfaces.
+    var p = new URLSearchParams({ bv: 'talk-to-an-expert' });
+    if (ctx.provider && ctx.provider !== 'email') p.set('auth', ctx.provider);
+    if (ctx.email)     p.set('email', ctx.email);
+    if (ctx.firstName) p.set('firstName', ctx.firstName);
+    if (ctx.lastName)  p.set('lastName',  ctx.lastName);
+    var algUrl = 'https://report.improvado.io/signup/?' + p.toString();
+
+    // Dev mode: keep the inline ALG splash so we can design-iterate without
+    // leaving the page. Real flow: hard redirect after a short beat.
+    if (isDevSimulating()) {
+      if (ctx.provider && ctx.provider !== 'email') {
+        algOauthProvider.textContent = 'via ' + capitalize(ctx.provider) + ' · verified';
+        algOauthFallback.href = algUrl;
+        setState('alg-oauth');
+      } else {
+        algEmailDisplay.textContent = ctx.email || 'you@company.com';
+        setState('alg-email');
+        setTimeout(function () { if (algPassword) algPassword.focus(); }, 60);
+      }
+      console.log('[alg] DEV mode — would redirect to:', algUrl);
+      return;
+    }
+
+    console.log('[alg] redirecting to', algUrl);
+    window.location.assign(algUrl);
+  }
+
+  if (algPwToggle) {
+    algPwToggle.addEventListener('click', function () {
+      var isPw = algPassword.type === 'password';
+      algPassword.type = isPw ? 'text' : 'password';
+      algPwToggle.textContent = isPw ? 'Hide' : 'Show';
+    });
+  }
+  if (algPassword) {
+    algPassword.addEventListener('input', function () {
+      var v = algPassword.value;
+      pwLen.classList.toggle('ok', v.length >= 8);
+      pwMix.classList.toggle('ok', /[A-Za-z]/.test(v) && /\d/.test(v));
+    });
+  }
+  if (algPasswordForm) {
+    algPasswordForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (algPassword.value.length < 8) { algPassword.focus(); return; }
+      algEmailSubmit.disabled = true;
+      algEmailSubmit.innerHTML = 'Creating your account…';
+      setTimeout(function () {
+        algEmailSubmit.innerHTML = '✓ Account created · redirecting…';
+        // PROD: window.location.assign('https://report.improvado.io/signup/?email=' + encodeURIComponent(ctx.email) + '&bv=talk-to-an-expert');
+      }, 1200);
+    });
+  }
+
+  /* Back-links — return to identity-selection from any later state */
+  document.querySelectorAll('[data-back]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var ft = ctx.forcedTier;
+      ctx = { provider: null, email: null, firstName: null, lastName: null,
+              fullName: null, segment: null, forcedTier: ft, midBookCal: null };
+      setDevResolved(null);
+      setState('identity-selection');
+    });
+  });
+
+  /* DEV controls — `?dev=N` levels:
+       ?dev=1 → simulator dropdown visible (force HIGH/MID/LOW tier)
+       ?dev=2 → ALSO bypasses the LLM router's test-email guard so
+               `test@<domain>` flows aren't auto-disqualified to Non-ICP
+               (the router has a `test_email` flag that always disqualifies
+               anything matching ^test*@…). Sasha's signup test convention
+               uses test@*; this lets it work end-to-end on the dev page.
+     Standalone toggle: `?allow-test=1` enables the bypass without showing
+     the simulator dropdown (e.g. for clean screenshots with real classification). */
+  var params = new URLSearchParams(window.location.search);
+  var devLevel = params.get('dev');
+  if (devLevel === '1' || devLevel === '2') body.setAttribute('data-dev', devLevel);
+  var BYPASS_TEST_FILTER = (devLevel === '2') || params.get('allow-test') === '1';
+  // Make the flag visible to realRouter (defined earlier in the same IIFE
+  // via closure; this assignment overwrites the default at module init time).
+  if (BYPASS_TEST_FILTER) {
+    console.log('[router] BYPASS_TEST_FILTER enabled — test@<domain> emails will be rewritten to hello@<domain> before being sent to the LLM/segment router (original email preserved for booking + signup).');
+    window.__bypassTestEmail = true;
+  }
+  if (devTier) devTier.addEventListener('change', function () { ctx.forcedTier = devTier.value; });
+  if (devReset) devReset.addEventListener('click', function () {
+    ctx = { provider: null, email: null, firstName: null, lastName: null,
+            fullName: null, segment: null, forcedTier: 'auto', midBookCal: null };
+    if (devTier) devTier.value = 'auto';
+    if (emailInput) emailInput.value = '';
+    if (loadingTimer) clearTimeout(loadingTimer);
+    setDevResolved(null);
+    setState('identity-selection');
+  });
+
+  /* Init */
+  setState('identity-selection');
+})();
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+/* ──── v20 Carousel React block — extracted verbatim from signup-v20.html ──── */
+const SCHEMES = {
+  violet:   { a: 'oklch(0.62 0.18 290)', b: 'oklch(0.66 0.14 240)', c: 'oklch(0.78 0.10 200)', deep: 'oklch(0.20 0.10 285)' },
+  emerald:  { a: 'oklch(0.58 0.14 165)', b: 'oklch(0.66 0.11 195)', c: 'oklch(0.78 0.08 130)', deep: 'oklch(0.18 0.06 165)' },
+  sunset:   { a: 'oklch(0.66 0.18 35)',  b: 'oklch(0.72 0.14 60)',  c: 'oklch(0.78 0.12 90)',  deep: 'oklch(0.22 0.08 35)'  },
+  graphite: { a: 'oklch(0.42 0.02 260)', b: 'oklch(0.55 0.03 250)', c: 'oklch(0.72 0.02 240)', deep: 'oklch(0.16 0.01 260)' }
+};
+
+
+const CARDS = [
+  {
+    id: 'roas', kind: 'metric-trend', tag: 'Performance',
+    question: 'Show me ROAS by campaign for the last 30 days.',
+    metricLabel: 'Blended ROAS', metric: '3.4', metricUnit: '×',
+    delta: '▲ 14.2%', deltaPositive: true,
+    answer: ['Pulled', '3,142 campaigns', 'across 5 sources. Top channel', 'Meta', '.'],
+    trend: [38, 42, 36, 48, 52, 58, 55, 64, 62, 70, 76, 84]
+  },
+  {
+    id: 'cac', kind: 'channel-bars', tag: 'Acquisition',
+    question: 'Compare CAC across acquisition channels this quarter.',
+    metricLabel: 'Avg. CAC', metric: '$48',
+    delta: '▼ 9.1%', deltaPositive: true,
+    channels: [
+      { name: 'Organic',  value: 22,  color: 'oklch(0.62 0.14 155)' },
+      { name: 'Meta',     value: 64,  color: 'oklch(0.62 0.16 250)' },
+      { name: 'LinkedIn', value: 186, color: 'oklch(0.55 0.12 240)' }
+    ],
+    answer: ['Lowest in', 'Organic', 'at $22. Highest in', 'LinkedIn', 'at $186.']
+  },
+  {
+    id: 'pipeline', kind: 'funnel', tag: 'Revenue',
+    question: 'Which campaigns drove pipeline last week?',
+    metricLabel: 'Pipeline created', metric: '$2.1', metricUnit: 'M',
+    delta: '▲ 22%', deltaPositive: true,
+    funnel: [
+      { stage: 'Visitors',  value: '128K', pct: 100 },
+      { stage: 'Leads',     value: '8.4K', pct: 55 },
+      { stage: 'Pipeline',  value: '$2.1M', pct: 22 }
+    ],
+    answer: ['Top driver:', 'Q2 Demand-Gen Webinar', '— sourced', '$640K', 'in qualified pipeline.']
+  },
+  {
+    id: 'unify', kind: 'unification', tag: 'Foundation',
+    question: 'How do you make my data ready for the agent?',
+    answer: ['All sources flow into one', 'tokenized knowledge layer', '— the agent answers in', 'milliseconds', '.']
+  },
+  {
+    id: 'attribution', kind: 'donut', tag: 'Attribution',
+    question: "What's working in our paid mix right now?",
+    metricLabel: 'Attributed revenue', metric: '$1.8', metricUnit: 'M',
+    delta: '▲ 7.4%', deltaPositive: true,
+    slices: [
+      { name: 'Meta',     pct: 42, color: 'oklch(0.62 0.16 250)' },
+      { name: 'Google',   pct: 32, color: 'oklch(0.72 0.16 50)' },
+      { name: 'LinkedIn', pct: 14, color: 'oklch(0.55 0.12 240)' },
+      { name: 'Organic',  pct: 12, color: 'oklch(0.62 0.14 155)' }
+    ],
+    answer: ['Meta and Google together produced', '74%', 'of attributed revenue this month.']
+  }
+];
+
+function SourceLogos() {
+  const sources = [
+    { name: 'Meta',     bg: '#0866FF', mark: <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#fff" d="M12 2C6.5 2 2 6.5 2 12c0 5 3.66 9.13 8.44 9.88V14.9H7.9V12h2.54V9.8c0-2.5 1.5-3.9 3.78-3.9 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57V12h2.78l-.45 2.9h-2.33v6.98C18.34 21.13 22 17 22 12c0-5.5-4.5-10-10-10z"/></svg> },
+    { name: 'Google',   bg: '#fff', mark: <svg width="14" height="14" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.32A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.71a5.41 5.41 0 0 1 0-3.42V4.96H.96a9 9 0 0 0 0 8.07l3-2.32z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.34l2.58-2.59A9 9 0 0 0 9 0 9 9 0 0 0 .96 4.96l3 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>, border: '#e5e5e5' },
+    { name: 'LinkedIn', bg: '#0A66C2', mark: <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#fff" d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg> },
+    { name: 'HubSpot',  bg: '#FF7A59', mark: <svg width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="15" r="5" fill="none" stroke="#fff" strokeWidth="2"/><circle cx="18" cy="6" r="2.5" fill="#fff"/><path stroke="#fff" strokeWidth="2" d="M12 10V6.5M12 10l5-3"/></svg> },
+    { name: 'Salesforce', bg: '#00A1E0', mark: <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#fff" d="M9.5 5a4 4 0 0 1 7.4 1.5A4 4 0 0 1 21 12a4 4 0 0 1-3.5 4 3.5 3.5 0 0 1-6.7.5A4 4 0 0 1 4 14a4 4 0 0 1 1.4-7A4.5 4.5 0 0 1 9.5 5z"/></svg> }
+  ];
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+      {sources.map((s, i) => (
+        <div key={s.name} title={s.name} style={{
+          width: 24, height: 24, borderRadius: '50%',
+          background: s.bg,
+          border: s.border ? `1px solid ${s.border}` : '1.5px solid #fff',
+          display: 'grid', placeItems: 'center',
+          marginLeft: i === 0 ? 0 : -6,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.10)',
+          zIndex: sources.length - i
+        }}>{s.mark}</div>
+      ))}
+    </div>
+  );
+}
+
+function Dot({ scheme, d }) {
+  return (
+    <span style={{
+      width: 5, height: 5, borderRadius: '50%',
+      background: scheme.a,
+      animation: `pulse 1.2s ${d}s ease-in-out infinite`
+    }}/>
+  );
+}
+
+function ThinkingRow({ scheme, card }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 11,
+      padding: '9px 14px',
+      background: `color-mix(in oklch, ${scheme.a}, transparent 94%)`,
+      border: `1px solid color-mix(in oklch, ${scheme.a}, transparent 86%)`,
+      borderRadius: 12,
+      alignSelf: 'flex-start',
+      maxWidth: '100%', minWidth: 0, overflow: 'hidden'
+    }}>
+      <span style={{
+        width: 24, height: 24, borderRadius: 7,
+        background: `linear-gradient(135deg, ${scheme.a}, ${scheme.b})`,
+        display: 'grid', placeItems: 'center', flexShrink: 0,
+        color: 'white', fontSize: 12, fontWeight: 700
+      }}>✦</span>
+      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'oklch(0.28 0.02 270)', flexShrink: 0 }}>Agent</span>
+      <span style={{ fontSize: 13, color: 'oklch(0.45 0.01 270)', flexShrink: 0 }}>searching</span>
+      <SourceLogos />
+      <span style={{ display: 'inline-flex', gap: 4, marginLeft: 'auto', flexShrink: 0 }}>
+        <Dot scheme={scheme} d={0} />
+        <Dot scheme={scheme} d={0.15} />
+        <Dot scheme={scheme} d={0.3} />
+      </span>
+    </div>
+  );
+}
+
+function MetricBlock({ scheme, label, metric, unit, delta, deltaPositive }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
+      <div style={{ fontSize: 12.5, color: 'oklch(0.55 0.01 270)', textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 600 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap', minWidth: 0 }}>
+        <div className="display" style={{
+          fontSize: 60, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 0.9,
+          color: 'oklch(0.18 0.02 270)'
+        }}>
+          {metric}{unit && <span style={{ color: 'oklch(0.70 0.01 270)', fontSize: 44 }}>{unit}</span>}
+        </div>
+        {delta && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', borderRadius: 999,
+            background: deltaPositive
+              ? 'color-mix(in oklch, oklch(0.62 0.14 155), transparent 88%)'
+              : 'color-mix(in oklch, oklch(0.65 0.18 25), transparent 88%)',
+            color: deltaPositive ? 'oklch(0.42 0.14 155)' : 'oklch(0.45 0.18 25)',
+            fontSize: 14, fontWeight: 600
+          }}>{delta}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Sparkline({ scheme, pts }) {
+  const w = 540, h = 170, pad = 10;
+  const max = Math.max(...pts), min = Math.min(...pts);
+  const xs = pts.map((_, i) => pad + (i * (w - pad * 2)) / (pts.length - 1));
+  const ys = pts.map((v) => h - pad - ((v - min) / Math.max(0.001, max - min)) * (h - pad * 2 - 4));
+  const path = pts.map((_, i) => `${i === 0 ? 'M' : 'L'}${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
+  const area = `${path} L${xs[xs.length-1].toFixed(1)} ${h} L${xs[0].toFixed(1)} ${h} Z`;
+  const gradId = `sp-${Math.round(Math.random()*1e6)}`;
+  const lastIdx = pts.length - 1;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: 170, display: 'block' }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={scheme.a} stopOpacity="0.32"/>
+            <stop offset="100%" stopColor={scheme.a} stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map(p => (
+          <line key={p} x1={pad} x2={w - pad} y1={pad + p * (h - pad * 2)} y2={pad + p * (h - pad * 2)}
+            stroke="oklch(0.94 0.005 270)" strokeWidth="1" strokeDasharray="2 4"/>
+        ))}
+        <path d={area} fill={`url(#${gradId})`} />
+        <path d={path} fill="none" stroke={scheme.a} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        {pts.map((_, i) => (
+          <circle key={i} cx={xs[i]} cy={ys[i]} r={i === lastIdx ? 7 : 3.5}
+            fill={i === lastIdx ? scheme.a : 'white'} stroke={scheme.a} strokeWidth="2"/>
+        ))}
+        <circle cx={xs[lastIdx]} cy={ys[lastIdx]} r="14" fill={scheme.a} fillOpacity="0.22"/>
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'oklch(0.62 0.01 270)', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <span>30 days ago</span>
+        <span>Today</span>
+      </div>
+    </div>
+  );
+}
+
+function ChannelBars({ scheme, channels }) {
+  const max = Math.max(...channels.map(c => c.value));
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0, padding: '6px 0' }}>
+      {channels.map((c) => (
+        <div key={c.name} style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', minWidth: 0 }}>
+            <span style={{ fontSize: 15.5, color: 'oklch(0.28 0.01 270)', fontWeight: 600 }}>{c.name}</span>
+            <span className="mono" style={{ fontSize: 16, color: 'oklch(0.18 0.02 270)', fontWeight: 700, letterSpacing: '-0.01em' }}>${c.value}<span style={{ color: 'oklch(0.62 0.01 270)', fontWeight: 500, fontSize: 13 }}> CAC</span></span>
+          </div>
+          <div style={{ height: 14, borderRadius: 999, background: 'oklch(0.95 0.005 270)', overflow: 'hidden', minWidth: 0, position: 'relative' }}>
+            <div style={{
+              height: '100%', width: `${(c.value / max) * 100}%`,
+              background: `linear-gradient(90deg, ${c.color}, color-mix(in oklch, ${c.color}, white 22%))`,
+              borderRadius: 999,
+              boxShadow: `0 1px 0 color-mix(in oklch, ${c.color}, white 40%) inset`
+            }}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Funnel({ scheme, stages }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0, padding: '6px 0' }}>
+      {stages.map((s, i) => {
+        const prev = i > 0 ? stages[i - 1].pct : 100;
+        const drop = i > 0 ? Math.round(((prev - s.pct) / prev) * 100) : null;
+        return (
+          <div key={s.stage} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 15.5, color: 'oklch(0.28 0.01 270)', fontWeight: 600 }}>{s.stage}</span>
+              <span className="mono" style={{ fontSize: 16, color: 'oklch(0.18 0.02 270)', fontWeight: 700, letterSpacing: '-0.01em' }}>{s.value}</span>
+            </div>
+            <div style={{ position: 'relative', minWidth: 0 }}>
+              <div style={{
+                height: 36,
+                width: `${s.pct}%`,
+                minWidth: 80, maxWidth: '100%',
+                background: `linear-gradient(90deg, color-mix(in oklch, ${scheme.a}, white ${i * 14}%), color-mix(in oklch, ${scheme.b}, white ${i * 14}%))`,
+                borderRadius: 8,
+                boxShadow: `0 1px 0 color-mix(in oklch, ${scheme.a}, white 50%) inset, 0 4px 10px -4px color-mix(in oklch, ${scheme.a}, transparent 70%)`
+              }}/>
+              {drop !== null && (
+                <span style={{
+                  position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 13, color: 'oklch(0.55 0.01 270)', fontWeight: 500
+                }}>−{drop}%</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Donut({ scheme, slices }) {
+  const r = 62, c = 2 * Math.PI * r;
+  let off = 0;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', alignItems: 'center', gap: 24, minWidth: 0 }}>
+      <svg width="180" height="180" viewBox="0 0 180 180" style={{ display: 'block' }}>
+        <circle cx="90" cy="90" r={r} fill="none" stroke="oklch(0.95 0.005 270)" strokeWidth="22"/>
+        {slices.map((s) => {
+          const len = (s.pct / 100) * c;
+          const dash = `${len} ${c - len}`;
+          const dashoff = -off;
+          off += len;
+          return (
+            <circle key={s.name} cx="90" cy="90" r={r} fill="none"
+              stroke={s.color} strokeWidth="22"
+              strokeDasharray={dash}
+              strokeDashoffset={dashoff}
+              transform="rotate(-90 90 90)"
+              strokeLinecap="butt"
+            />
+          );
+        })}
+        <text x="90" y="84" textAnchor="middle" fontSize="11" fill="oklch(0.55 0.01 270)" fontWeight="600" letterSpacing="1.8">PAID MIX</text>
+        <text x="90" y="106" textAnchor="middle" fontSize="20" fill="oklch(0.18 0.02 270)" fontWeight="700" fontFamily="Inter Tight">$1.8M</text>
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        {slices.map((s) => (
+          <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '10px 1fr auto', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <span style={{ width: 10, height: 28, borderRadius: 4, background: s.color }}/>
+            <span style={{ fontSize: 15.5, color: 'oklch(0.28 0.01 270)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+            <span className="mono" style={{ fontSize: 16, color: 'oklch(0.18 0.02 270)', fontWeight: 700, letterSpacing: '-0.01em' }}>{s.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ n, label, align = 'start' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: align === 'end' ? 'flex-end' : 'flex-start', gap: 3 }}>
+      <span className="display" style={{ fontSize: 22, fontWeight: 700, color: 'oklch(0.18 0.02 270)', letterSpacing: '-0.02em', lineHeight: 1 }}>{n}</span>
+      <span style={{ fontSize: 12, color: 'oklch(0.50 0.01 270)', letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 600 }}>{label}</span>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   UNIFICATION CARD — full-bleed schematic for "Foundation" story
+   ════════════════════════════════════════════════════════════════════════ */
+function UnificationCard({ scheme, card }) {
+  // 5 source platforms — white rounded squares, brand-color marks (matches reference design language)
+  const sources = [
+    { name: 'Google Ads', mark: <svg width="22" height="22" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.32A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.71a5.41 5.41 0 0 1 0-3.42V4.96H.96a9 9 0 0 0 0 8.07l3-2.32z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.34l2.58-2.59A9 9 0 0 0 9 0 9 9 0 0 0 .96 4.96l3 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg> },
+    { name: 'Meta',       mark: <svg width="22" height="22" viewBox="0 0 24 24"><path fill="#0866FF" d="M12 2C6.5 2 2 6.5 2 12c0 5 3.66 9.13 8.44 9.88V14.9H7.9V12h2.54V9.8c0-2.5 1.5-3.9 3.78-3.9 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57V12h2.78l-.45 2.9h-2.33v6.98C18.34 21.13 22 17 22 12c0-5.5-4.5-10-10-10z"/></svg> },
+    { name: 'LinkedIn',   mark: <svg width="22" height="22" viewBox="0 0 24 24"><path fill="#0A66C2" d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg> },
+    { name: 'HubSpot',    mark: <svg width="22" height="22" viewBox="0 0 24 24"><g fill="none" stroke="#FF7A59" strokeWidth="2.4"><circle cx="11.5" cy="15" r="5.2"/><circle cx="18.5" cy="6" r="2.4" fill="#FF7A59"/><path d="M11.5 9.8V6.5"/><path d="M11.5 9.8L17 6.5"/></g></svg> },
+    { name: 'Salesforce', mark: <svg width="24" height="24" viewBox="0 0 24 18"><path fill="#00A1E0" d="M9.96 1.96a4.16 4.16 0 0 1 3.04-1.32c1.6 0 3 .9 3.74 2.22a5.04 5.04 0 0 1 2.06-.44 5.18 5.18 0 0 1 5.2 5.16 5.18 5.18 0 0 1-2.78 4.58 3.74 3.74 0 0 1-3.4 5.32 3.7 3.7 0 0 1-1.62-.36 4.5 4.5 0 0 1-3.84 2.16 4.5 4.5 0 0 1-2.86-1 3.74 3.74 0 0 1-2.94 1.4 3.74 3.74 0 0 1-3.5-2.36A4.16 4.16 0 0 1 0 11.5a4.16 4.16 0 0 1 2.06-3.6A4.78 4.78 0 0 1 1.84 6 4.78 4.78 0 0 1 6.62 1.22c.86 0 1.66.22 2.36.62l.98.12z"/></svg> },
+  ];
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: '#fff', borderRadius: 26,
+      boxShadow: '0 1px 0 rgba(255,255,255,0.9) inset, 0 60px 120px -40px rgba(10,10,30,0.55), 0 20px 50px -20px rgba(10,10,30,0.35)',
+      padding: '22px 26px',
+      display: 'grid', gridTemplateRows: 'auto 1fr auto', gap: 14, overflow: 'hidden', position: 'relative',
+      backgroundImage: `radial-gradient(700px 400px at 100% 0%, color-mix(in oklch, ${scheme.a}, transparent 92%), transparent 60%)`
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <span style={{ width: 28, height: 28, borderRadius: 9, background: `linear-gradient(135deg, ${scheme.a}, ${scheme.b})`, display: 'grid', placeItems: 'center', color: 'white', fontSize: 14, fontWeight: 700 }}>✦</span>
+          <span className="display" style={{ fontSize: 17, fontWeight: 600, color: 'oklch(0.18 0.02 270)' }}>Every source. One agent.</span>
+        </div>
+        <span style={{ fontSize: 11.5, color: scheme.deep, padding: '6px 12px', background: `color-mix(in oklch, ${scheme.a}, transparent 90%)`, borderRadius: 999, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{card.tag}</span>
+      </div>
+
+      {/* PIPELINE BODY — top-to-bottom data flow.
+          ALIGNMENT: 5 icons × 46px + 4 gaps × 10px = exactly 270px wide.
+          The funnel SVG below is also locked to 270px wide so its line x-coordinates
+          (23, 79, 135, 191, 247) map 1:1 to icon center positions. Without this lock,
+          the SVG would stretch to full card width and the streams would float disconnected. */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', minHeight: 0, position: 'relative' }}>
+
+        {/* TIER 1+2 — sources + caption + funnel, locked together at 270px width, centered */}
+        <div style={{ width: 270, alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minHeight: 0 }}>
+
+          {/* Source icons — natural 270px width with 10px gaps */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            {sources.map((s) => (
+              <div key={s.name} style={{
+                width: 46, height: 46, borderRadius: 12,
+                background: '#fff',
+                border: '1px solid oklch(0.93 0.005 270)',
+                display: 'grid', placeItems: 'center', flexShrink: 0,
+                boxShadow: '0 4px 12px -4px rgba(20,20,40,0.10), 0 1px 0 rgba(255,255,255,0.9) inset'
+              }}>{s.mark}</div>
+            ))}
+          </div>
+
+          {/* Caption */}
+          <div style={{ marginTop: 8, fontSize: 10, color: 'oklch(0.55 0.01 270)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase' }}>
+            Connect 1,000+ sources
+          </div>
+
+          {/* FUNNEL SVG — width=270 matches the icon row exactly, so x=23/79/135/191/247
+              in viewBox space line up perfectly with the 5 icon center positions above.
+              Height stretches with flex:1 to fill remaining vertical space.
+              preserveAspectRatio="none" lets the funnel get taller without distorting x-positions. */}
+          <div style={{ width: 270, flex: 1, minHeight: 90, marginTop: 6 }}>
+            <svg width="270" height="100%" viewBox="0 0 270 100" preserveAspectRatio="none" style={{ display: 'block' }}>
+              <defs>
+                <linearGradient id="funnel-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"  stopColor={scheme.a} stopOpacity="0"/>
+                  <stop offset="60%" stopColor={scheme.a} stopOpacity="0.06"/>
+                  <stop offset="100%" stopColor={scheme.a} stopOpacity="0.18"/>
+                </linearGradient>
+                <linearGradient id="stream" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"  stopColor={scheme.a} stopOpacity="0.15"/>
+                  <stop offset="60%" stopColor={scheme.a} stopOpacity="0.55"/>
+                  <stop offset="100%" stopColor={scheme.a} stopOpacity="0.95"/>
+                </linearGradient>
+                <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"  stopColor={scheme.a} stopOpacity="0.50"/>
+                  <stop offset="60%" stopColor={scheme.a} stopOpacity="0.12"/>
+                  <stop offset="100%" stopColor={scheme.a} stopOpacity="0"/>
+                </radialGradient>
+              </defs>
+
+              {/* Funnel trapezoid — wide at top (matches icon span 0-270), narrow at bottom (around node) */}
+              <path d="M 8 0 L 262 0 L 148 88 L 122 88 Z" fill="url(#funnel-fill)"/>
+
+              {/* Halo behind the convergence node */}
+              <circle cx="135" cy="88" r="20" fill="url(#node-glow)"/>
+
+              {/* 5 streams — start at icon CENTER bottom-edges (icon centers are x=23,79,135,191,247
+                  and bottom of icon is just above this SVG, so we start at y=0 here).
+                  End at convergence node (135, 88). Cubic bezier with control points pulling toward center. */}
+              {[23, 79, 135, 191, 247].map((x, i) => (
+                <path key={i}
+                      d={`M ${x} 0 C ${x} 32, ${135 + (x-135)*0.20} 64, 135 88`}
+                      stroke="url(#stream)" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+              ))}
+
+              {/* Traveling data dots along each stream — placed at 30% and 65% of path */}
+              {[23, 79, 135, 191, 247].map((x, i) => (
+                <React.Fragment key={`dot-${i}`}>
+                  <circle cx={x + (135 - x) * 0.30} cy={26} r="1.6" fill={scheme.a} opacity="0.50"/>
+                  <circle cx={x + (135 - x) * 0.65} cy={58} r="1.7" fill={scheme.a} opacity="0.78"/>
+                </React.Fragment>
+              ))}
+
+              {/* Convergence node — solid dot + outer ring */}
+              <circle cx="135" cy="88" r="4.5" fill={scheme.a}/>
+              <circle cx="135" cy="88" r="8" fill="none" stroke={scheme.a} strokeWidth="1.2" strokeOpacity="0.4"/>
+
+              {/* Pipe continuation — straight line from node down to SVG bottom edge (y=100) */}
+              <line x1="135" y1="93" x2="135" y2="100" stroke={scheme.a} strokeWidth="1.8" strokeOpacity="0.75"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* TIER 3 — UNIFIED LAYER (the "active" processing stage)
+            Gradient background, mini dot-viz on the right showing tokenized data points,
+            sits flush with the pipe coming down from convergence node above. */}
+        <div style={{
+          padding: '13px 14px',
+          background: `linear-gradient(135deg, color-mix(in oklch, ${scheme.a}, white 88%), color-mix(in oklch, ${scheme.b}, white 90%))`,
+          border: `1px solid color-mix(in oklch, ${scheme.a}, transparent 75%)`,
+          borderRadius: 14,
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: `0 1px 0 rgba(255,255,255,0.9) inset, 0 8px 24px -10px color-mix(in oklch, ${scheme.a}, transparent 60%)`,
+          position: 'relative',
+        }}>
+          <span style={{
+            width: 38, height: 38, borderRadius: 10,
+            background: `linear-gradient(135deg, ${scheme.a}, ${scheme.b})`,
+            display: 'grid', placeItems: 'center', flexShrink: 0,
+            boxShadow: `0 6px 14px -4px color-mix(in oklch, ${scheme.a}, transparent 50%)`
+          }}>
+            {/* Database / unify icon */}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <ellipse cx="12" cy="6" rx="7" ry="2.5" stroke="white" strokeWidth="1.8"/>
+              <path d="M5 6v6c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6" stroke="white" strokeWidth="1.8"/>
+              <path d="M5 12v6c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-6" stroke="white" strokeWidth="1.8"/>
+            </svg>
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'oklch(0.18 0.02 270)', letterSpacing: '0.01em' }}>Unified data layer</div>
+            <div style={{ fontSize: 12, color: 'oklch(0.45 0.01 270)' }}>tokenized · joined · 1.4B records</div>
+          </div>
+          {/* Mini dot-viz — represents indexed data points */}
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexShrink: 0 }}>
+            {[0.4, 0.7, 1.0, 0.85, 0.55, 0.9, 0.6].map((o, i) => (
+              <span key={i} style={{ width: 4, height: 4 + i, borderRadius: 1, background: scheme.a, opacity: o }}/>
+            ))}
+          </div>
+        </div>
+
+        {/* TIER 4 — PIPE between stages (solid line with mid-flow indicator) */}
+        <div style={{ display: 'flex', justifyContent: 'center', height: 16, position: 'relative' }}>
+          <svg width="2" height="16" viewBox="0 0 2 16">
+            <line x1="1" y1="0" x2="1" y2="16" stroke={scheme.a} strokeWidth="1.4" strokeOpacity="0.5"/>
+          </svg>
+          {/* Tiny dot mid-pipe — suggests data packet flowing */}
+          <span style={{
+            position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
+            width: 4, height: 4, borderRadius: '50%', background: scheme.a,
+            boxShadow: `0 0 0 3px color-mix(in oklch, ${scheme.a}, transparent 80%)`
+          }}/>
+        </div>
+
+        {/* TIER 5 — AGENT-READY (output stage, cleaner) */}
+        <div style={{
+          padding: '11px 14px',
+          background: '#fff',
+          border: '1px solid oklch(0.93 0.005 270)',
+          borderRadius: 14,
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 1px 0 rgba(255,255,255,0.9) inset, 0 4px 12px -8px rgba(20,20,40,0.08)'
+        }}>
+          <span style={{
+            width: 32, height: 32, borderRadius: 9,
+            background: 'oklch(0.96 0.005 270)',
+            display: 'grid', placeItems: 'center', flexShrink: 0,
+            border: `1px solid color-mix(in oklch, ${scheme.a}, transparent 75%)`,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" fill={scheme.a}/>
+            </svg>
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'oklch(0.20 0.02 270)' }}>Agent-ready</div>
+            <div style={{ fontSize: 11.5, color: 'oklch(0.50 0.01 270)' }}>one query → one cited answer</div>
+          </div>
+          <span style={{ fontSize: 14, color: scheme.a, fontWeight: 600 }}>→</span>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 16, paddingTop: 14, borderTop: '1px solid oklch(0.94 0.005 270)' }}>
+        <Stat n="1,000+" label="connectors" />
+        <span style={{ width: 1, height: 24, background: 'oklch(0.92 0.005 270)' }}/>
+        <Stat n="1.4B" label="tokens indexed" align="end" />
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONVERSATION CARD — chat bubble + thinking + viz + answer
+   ════════════════════════════════════════════════════════════════════════ */
+function ConversationCard({ scheme, card }) {
+  if (card.kind === 'unification') return <UnificationCard scheme={scheme} card={card} />;
+
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: '#fff', borderRadius: 26,
+      boxShadow: '0 1px 0 rgba(255,255,255,0.9) inset, 0 60px 120px -40px rgba(10,10,30,0.55), 0 20px 50px -20px rgba(10,10,30,0.35)',
+      padding: '26px 30px 24px',
+      display: 'grid', gridTemplateRows: 'auto auto 1fr auto', gap: 18, overflow: 'hidden',
+      backgroundImage: `radial-gradient(700px 400px at 100% 0%, color-mix(in oklch, ${scheme.a}, transparent 92%), transparent 60%)`
+    }}>
+      <div style={{
+        alignSelf: 'flex-start', justifySelf: 'flex-end', maxWidth: '92%',
+        padding: '14px 18px', background: 'oklch(0.18 0.02 270)',
+        color: 'rgba(255,255,255,0.95)', borderRadius: '20px 20px 6px 20px',
+        fontSize: 15.5, lineHeight: 1.4, wordBreak: 'break-word', fontWeight: 500,
+        boxShadow: '0 4px 14px -6px rgba(10,10,30,0.30)'
+      }}>{card.question}</div>
+
+      <ThinkingRow scheme={scheme} card={card} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 22, minHeight: 0, overflow: 'hidden' }}>
+        {card.kind === 'metric-trend' && (<>
+          <MetricBlock scheme={scheme} label={card.metricLabel} metric={card.metric} unit={card.metricUnit} delta={card.delta} deltaPositive={card.deltaPositive} />
+          <Sparkline scheme={scheme} pts={card.trend} />
+        </>)}
+        {card.kind === 'channel-bars' && (<>
+          <MetricBlock scheme={scheme} label={card.metricLabel} metric={card.metric} delta={card.delta} deltaPositive={card.deltaPositive} />
+          <ChannelBars scheme={scheme} channels={card.channels} />
+        </>)}
+        {card.kind === 'funnel' && (<>
+          <MetricBlock scheme={scheme} label={card.metricLabel} metric={card.metric} unit={card.metricUnit} delta={card.delta} deltaPositive={card.deltaPositive} />
+          <Funnel scheme={scheme} stages={card.funnel} />
+        </>)}
+        {card.kind === 'donut' && (<>
+          <MetricBlock scheme={scheme} label={card.metricLabel} metric={card.metric} unit={card.metricUnit} delta={card.delta} deltaPositive={card.deltaPositive} />
+          <Donut scheme={scheme} slices={card.slices} />
+        </>)}
+      </div>
+
+      <div style={{ paddingTop: 16, borderTop: '1px solid oklch(0.92 0.005 270)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 9, background: `linear-gradient(135deg, ${scheme.a}, ${scheme.b})`, display: 'grid', placeItems: 'center', flexShrink: 0, color: 'white', fontSize: 14, fontWeight: 700 }}>✦</span>
+        <div style={{ fontSize: 14.5, color: 'oklch(0.32 0.01 270)', lineHeight: 1.45, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          {/* Render answer segments with a space between every pair EXCEPT
+              when the next segment begins with punctuation (period, comma,
+              em-dash, etc) — fixes "$640Kin qualified pipeline" type runs
+              that the v20 original had when the data omitted leading spaces. */}
+          {card.answer.map((seg, i) => {
+            const next = card.answer[i + 1] || '';
+            const trailing = (i < card.answer.length - 1 && !/^[.,;:!?—–]/.test(next)) ? ' ' : '';
+            return i % 2 === 1
+              ? <strong key={i} style={{ color: 'oklch(0.18 0.02 270)' }}>{seg}{trailing}</strong>
+              : <span key={i}>{seg}{trailing}</span>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CAROUSEL — swipeable deck of 3 visible cards (current + next + prev)
+   ════════════════════════════════════════════════════════════════════════ */
+function NavBtn({ dir, onClick }) {
+  return (
+    <button onClick={onClick} aria-label={dir} style={{
+      width: 26, height: 26, borderRadius: '50%',
+      background: 'transparent', border: 'none',
+      color: 'rgba(255,255,255,0.75)', cursor: 'pointer',
+      display: 'grid', placeItems: 'center', fontSize: 13,
+      transition: 'all 0.18s', fontFamily: 'inherit'
+    }}>{dir === 'prev' ? '←' : '→'}</button>
+  );
+}
+
+function Carousel({ scheme, autoplay }) {
+  const [idx, setIdx] = useState(0);
+  const [drag, setDrag] = useState(null);
+  const [paused, setPaused] = useState(false);
+  const startXRef = useRef(0);
+
+  const go = useCallback((next) => setIdx((i) => (next + CARDS.length) % CARDS.length), []);
+
+  useEffect(() => {
+    if (!autoplay || paused) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % CARDS.length), 5000);
+    return () => clearInterval(t);
+  }, [autoplay, paused]);
+
+  const onPointerDown = (e) => {
+    setPaused(true);
+    startXRef.current = e.clientX;
+    setDrag({ dx: 0 });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (drag === null) return;
+    setDrag({ dx: e.clientX - startXRef.current });
+  };
+  const onPointerUp = () => {
+    if (drag === null) return;
+    const dx = drag.dx;
+    setDrag(null);
+    if (Math.abs(dx) > 60) go(idx + (dx < 0 ? 1 : -1));
+    setTimeout(() => setPaused(false), 1500);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowLeft') go(idx - 1);
+      if (e.key === 'ArrowRight') go(idx + 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [idx, go]);
+
+  const dragOffset = drag?.dx ?? 0;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', maxWidth: 520, height: '100%', maxHeight: 620 }}
+         onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <div style={{
+        position: 'absolute', inset: '-12% -10% -16% -10%',
+        background: `radial-gradient(closest-side, ${scheme.a} 0%, transparent 70%)`,
+        opacity: 0.32, filter: 'blur(50px)', pointerEvents: 'none'
+      }}/>
+      <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
+        style={{ position: 'absolute', inset: 0, touchAction: 'pan-y', cursor: drag !== null ? 'grabbing' : 'grab', transformStyle: 'preserve-3d', perspective: '1600px' }}>
+        {CARDS.map((card, i) => {
+          const offset = ((i - idx + CARDS.length) % CARDS.length);
+          const isCurrent = offset === 0;
+          const isNext = offset === 1;
+          const isPrev = offset === CARDS.length - 1;
+          if (!isCurrent && !isNext && !isPrev) return null;
+
+          let translate = 0, rotate = 0, scale = 1, opacity = 1, z = 3;
+          if (isCurrent) { translate = dragOffset; rotate = dragOffset / 60; z = 3; }
+          else if (isNext) { translate = 30; rotate = 2.5; scale = 0.92; opacity = 0.75; z = 2; }
+          else if (isPrev) { translate = -30; rotate = -2.5; scale = 0.92; opacity = 0.75; z = 1; }
+
+          return (
+            <div key={card.id} style={{
+              position: 'absolute', inset: 0,
+              transform: `translateX(${translate}px) rotate(${rotate}deg) scale(${scale})`,
+              transition: drag !== null && isCurrent ? 'none' : 'transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s',
+              opacity, zIndex: z, pointerEvents: isCurrent ? 'auto' : 'none'
+            }}>
+              <ConversationCard scheme={scheme} card={card} />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{
+        position: 'absolute', left: '50%', bottom: -30,
+        transform: 'translateX(-50%)',
+        display: 'inline-flex', alignItems: 'center', gap: 4, padding: 4,
+        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 999
+      }}>
+        <NavBtn dir="prev" onClick={() => go(idx - 1)} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px' }}>
+          {CARDS.map((_, i) => (
+            <button key={i} onClick={() => go(i)} aria-label={`Go to card ${i+1}`} style={{
+              width: i === idx ? 18 : 6, height: 6, borderRadius: 999,
+              background: i === idx ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.30)',
+              border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0
+            }}/>
+          ))}
+        </div>
+        <NavBtn dir="next" onClick={() => go(idx + 1)} />
+      </div>
+    </div>
+  );
+}
+
+/* Mount: just the Carousel into our left-panel container. */
+(function () {
+  if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') return;
+  var root = document.getElementById('v20-carousel-root');
+  if (!root) return;
+  ReactDOM.createRoot(root).render(React.createElement(Carousel, { scheme: SCHEMES.violet, autoplay: true }));
+})();
+</script>
+
+</body>
+</html>
