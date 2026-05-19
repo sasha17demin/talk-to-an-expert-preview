@@ -959,7 +959,30 @@ body[data-state="high-icp"] {
   font-size: 20px; font-weight: 600; color: var(--ink); margin: 0;
 }
 .chooser-card p { font-size: 14px; color: var(--ink-3); margin: 0; }
-.chooser-card ul { list-style: none; padding: 0; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+/* Pricing tier — large price + period, with annual-billing fine print. Mirrors
+   test-pricing/index.html Professional tier styling so the chooser reads as a
+   pricing-card decision, not a marketing-funnel fork. */
+.chooser-card .price-tag {
+  display: flex; align-items: baseline; gap: 4px; margin-top: -2px;
+}
+.chooser-card .price-num {
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-size: 32px; font-weight: 700; letter-spacing: -0.025em;
+  color: var(--ink); line-height: 1;
+}
+.chooser-card .price-period {
+  font-size: 14px; font-weight: 500; color: var(--ink-3);
+}
+.chooser-card .price-fine {
+  font-size: 11.5px; color: var(--ink-3); margin-top: 2px;
+  letter-spacing: 0.01em;
+}
+.chooser-card .feat-label {
+  font-size: 10.5px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.10em;
+  margin-top: 4px; margin-bottom: -2px;
+}
+.chooser-card ul { list-style: none; padding: 0; margin: 4px 0; display: flex; flex-direction: column; gap: 6px; }
 .chooser-card li {
   font-size: 13px; color: var(--ink-2); padding-left: 20px;
   position: relative; line-height: 1.45;
@@ -1336,15 +1359,24 @@ body[data-dev="2"][data-state="identity-selection"] .dev-controls::after {
             <div class="icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
-            <h3>Book a 30-min call</h3>
-            <p>An Improvado expert maps your channels, scopes ROI, and walks the agent live.</p>
+            <span class="badge">Most teams start here</span>
+            <h3>Talk to an Improvado strategist</h3>
+            <div class="price-tag">
+              <span class="price-num">Start at&nbsp;$20K</span>
+              <span class="price-period">/&nbsp;year</span>
+            </div>
+            <div class="price-fine">~$1.7K/month, billed annually · Professional plan</div>
+            <p>A strategist scopes your channels, sets up the platform with you, and stays on as your dedicated CSM.</p>
+            <div class="feat-label">What you get</div>
             <ul>
-              <li>Tailored channel review</li>
-              <li>Pricing for your spend tier</li>
-              <li class="tentative">Most of our projects require a $20K budget</li>
+              <li>Dedicated CSM &amp; premium support</li>
+              <li>600M data rows / yr · 500+ sources · 4× daily sync</li>
+              <li>Unlimited dashboards · MDG · Attribution</li>
+              <li>300 AI queries / week · Video &amp; Semantic Analytics</li>
+              <li>SSO (Azure, Okta) · HIPAA · Miras Knowledge Platform</li>
             </ul>
             <button type="button" class="cta" id="mid-icp-book">
-              Book a time
+              Book a 30-min call
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
           </article>
@@ -1353,12 +1385,19 @@ body[data-dev="2"][data-state="identity-selection"] .dev-controls::after {
             <div class="icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor" fill-opacity="0.18"/></svg>
             </div>
-            <h3>Try the AI agent now</h3>
-            <p>Skip the call. Your workspace + agent in about 30 seconds.</p>
+            <h3>Try the AI agent</h3>
+            <div class="price-tag">
+              <span class="price-num">Free</span>
+              <span class="price-period">·&nbsp;no credit card</span>
+            </div>
+            <div class="price-fine">14-day trial · upgrade to a paid plan when you're ready</div>
+            <p>Skip the call. Connect your marketing sources and chat with your data in 30 seconds.</p>
+            <div class="feat-label">What's included</div>
             <ul>
-              <li>Free 14-day trial</li>
-              <li>Connect 1,000+ sources</li>
-              <li>Ask anything in plain English</li>
+              <li>Connect any of 1,000+ marketing sources</li>
+              <li>Ask anything in plain English · cited answers</li>
+              <li>Saved query history · share replies with your team</li>
+              <li>AI-drafted dashboards from your live data</li>
             </ul>
             <button type="button" class="cta" id="mid-icp-alg">
               Open the agent
