@@ -130,6 +130,15 @@ body[data-state="mid-icp"] {
   --right-padding: 28px 36px 24px;
   --right-max-width: none;
 }
+/* Warm avant-garde canvas — replaces stark white per Goncharova/Lubarda
+   palette study. Only applied to MID-ICP (the chooser); other states keep
+   their state-specific surfaces. */
+body[data-state="mid-icp"] .right {
+  background: #F2EDE3;
+}
+body[data-state="mid-icp"] .eyebrow-dot {
+  background: #6D2233;  /* oxblood — matches the primary CTA accent */
+}
 
 /* ════════════════════════════════════════════════════════════════════════
    Responsive — same breakpoint discipline as signup-v20.html
@@ -948,16 +957,17 @@ body[data-state="mid-icp"] {
   margin-top: 12px; align-items: stretch;
 }
 @media (max-width: 760px) { .chooser-grid { grid-template-columns: 1fr; } }
+/* Sierra-inspired restraint: hairline border, no drop shadow, warm off-white
+   ground. Hover signals via border-color shift only — no elevation candy. */
 .chooser-card {
-  background: #fff; border: 1px solid var(--line-2);
-  border-radius: 16px; padding: 28px 28px 24px;
+  background: #FAFAF7;
+  border: 1px solid #E5E2D9;
+  border-radius: 12px; padding: 30px 30px 26px;
   display: flex; flex-direction: column; gap: 14px;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  transition: border-color 0.2s ease;
 }
 .chooser-card:hover {
-  border-color: var(--violet-a);
-  box-shadow: 0 20px 48px -20px rgba(20,20,40,0.18);
-  transform: translateY(-2px);
+  border-color: #BCB6A2;
 }
 /* Tier pills (Enterprise / Self-Serve) replace the calendar+lightning icons —
    "futuristic" via JetBrains Mono + dot indicator + subtle border-glow. Style
@@ -987,16 +997,16 @@ body[data-state="mid-icp"] {
   background: transparent;
   border: 1px solid color-mix(in oklch, oklch(0.45 0.18 5), white 60%);
 }
-/* Subtle whole-card color wash — single visual lever per pricing-card SOTA
-   (one differentiator, not three). Pink wash on alg is barely-there so the
-   violet Enterprise card retains visual primacy. */
+/* Both cards on the same warm off-white ground — the violet/pink-tinted
+   gradient was reading as "candy SaaS". Differentiation now comes from the
+   tier pill at top + the CTA color, not from card backgrounds. */
 .chooser-card.book {
-  background: linear-gradient(180deg, color-mix(in oklch, var(--violet-a), white 95%) 0%, #fff 60%);
-  border-color: color-mix(in oklch, var(--violet-a), white 70%);
+  background: #FAFAF7;
+  border-color: #D9D3C2;
 }
 .chooser-card.alg {
-  background: #fff;
-  border-color: var(--line);
+  background: #FAFAF7;
+  border-color: #E5E2D9;
 }
 .chooser-card h3 {
   font-family: 'Inter Tight', 'Inter', sans-serif;
@@ -1026,18 +1036,25 @@ body[data-state="mid-icp"] {
   margin-top: 6px; margin-bottom: 0;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
-.chooser-card ul { list-style: none; padding: 0; margin: 2px 0; display: flex; flex-direction: column; gap: 9px; }
+/* Sierra-style hairline bullets — no candy green check disc. Each row is
+   separated by a 1px rule above; the leading "+" glyph is mono-typed for the
+   editorial avant-garde feel. */
+.chooser-card ul { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; }
 .chooser-card li {
-  font-size: 12.5px; color: var(--ink-2); padding-left: 19px;
-  position: relative; line-height: 1.55; letter-spacing: -0.005em;
+  font-size: 12.5px; color: var(--ink-2);
+  padding: 10px 0 10px 24px; position: relative; line-height: 1.5;
+  letter-spacing: -0.005em;
+  border-top: 1px solid #E5E2D9;
 }
+.chooser-card li:first-child { border-top: none; padding-top: 4px; }
 .chooser-card li::before {
-  content: ''; position: absolute; left: 0; top: 6px;
-  width: 12px; height: 12px; border-radius: 50%;
-  background: color-mix(in oklch, oklch(0.62 0.14 155), transparent 70%);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
-  background-size: 8px; background-position: center; background-repeat: no-repeat;
+  content: '+';
+  position: absolute; left: 0; top: 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+  width: 16px; text-align: center;
 }
+.chooser-card.book li::before { color: var(--violet-deep); }
 /* Tentative bullet — yellow disc, italicized note. Used for fit signals
    that are guidance rather than guarantees (e.g. budget heuristics). */
 .chooser-card li.tentative { color: var(--ink-2); font-style: italic; font-weight: 700; }
@@ -1046,23 +1063,35 @@ body[data-state="mid-icp"] {
   background-image: none;                 /* drop the green check glyph */
   border: 1px solid color-mix(in oklch, oklch(0.78 0.16 85), transparent 30%);
 }
+/* CTA hierarchy refactored per avant-garde palette study (Goncharova oxblood
+   #6D2233 from Spanish Dancer 1916). Book-a-Call gets the single saturated
+   accent — Self-Serve gets a ghost button so visual gravity lands on the paid
+   side. Drops violet-pink "candy" both for editorial restraint and CRO win. */
 .chooser-card .cta {
   margin-top: auto;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px 18px; border-radius: 12px;
+  padding: 14px 18px; border-radius: 10px;
   font-weight: 600; font-size: 14.5px; font-family: inherit;
-  border: none; cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 .chooser-card.book .cta {
-  background: linear-gradient(135deg, var(--violet-a), var(--violet-b)); color: #fff;
-  box-shadow: 0 10px 24px -10px var(--violet-a);
+  /* Goncharova oxblood — single saturated accent per viewport. */
+  background: #6D2233; color: #FAFAF7;
+  border-color: #5A1B2A;
+}
+.chooser-card.book .cta:hover {
+  background: #5A1B2A;
 }
 .chooser-card.alg .cta {
-  background: var(--pink); color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(255,49,134,0.50);
+  /* Ghost — ink outline on warm canvas. Self-Serve is the calmer choice. */
+  background: transparent; color: #1A1A1F;
+  border: 1px solid #1A1A1F;
 }
-.chooser-card .cta:hover { transform: translateY(-1px); }
+.chooser-card.alg .cta:hover {
+  background: #1A1A1F; color: #FAFAF7;
+}
 .chooser-card .badge {
   display: inline-block; align-self: flex-start;
   background: color-mix(in oklch, var(--violet-a), transparent 86%);
