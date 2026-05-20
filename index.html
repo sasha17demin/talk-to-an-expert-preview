@@ -122,12 +122,12 @@ body[data-state="high-icp"] {
   --right-max-width: none;
 }
 
-/* MID-ICP pricing chooser — give the right pane the same wide-right grid as
-   HIGH-ICP, drop the max-width cap so cards can fill the pane, and leave the
-   left illustration at a balanced 0.7fr (was being crushed at 0.55fr). */
+/* MID-ICP pricing chooser — keep the SAME left/right ratio as the default
+   identity-selection state (0.85fr 1fr) so the left illustration doesn't
+   visibly resize when routing kicks in. Just drop the 460px max-width cap so
+   the two pricing cards can fill the right pane comfortably. */
 body[data-state="mid-icp"] {
-  --page-cols: 0.7fr 1fr;
-  --right-padding: 28px 44px 24px;
+  --right-padding: 28px 36px 24px;
   --right-max-width: none;
 }
 
