@@ -2234,7 +2234,11 @@ body[data-dev="2"][data-state="identity-selection"] .dev-controls::after {
       showBooked(identity, ccState.selected);
     }).catch(function (err) {
       if (btn) { btn.disabled = false; btn.textContent = 'Book this time →'; }
-      showError(err && err.message || 'Booking failed.', identity);
+      // Log the raw HTTP/CORS error to console for ops, but show a calm
+      // user-friendly message + push the canonical-HubSpot fallback link.
+      try { console.warn('[Concierge] booking failed:', err); } catch (e) {}
+      dlPush({ event: 'meeting_book_failed', slug: ccState.apiSlug, reason: (err && err.message) || 'unknown' });
+      showError("We couldn't complete your booking just now. You can pick a time directly on HubSpot — your slot is still open.", identity);
     });
   }
 
