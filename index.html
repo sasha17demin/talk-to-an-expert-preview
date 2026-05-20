@@ -130,15 +130,6 @@ body[data-state="mid-icp"] {
   --right-padding: 28px 36px 24px;
   --right-max-width: none;
 }
-/* Warm avant-garde canvas — replaces stark white per Goncharova/Lubarda
-   palette study. Only applied to MID-ICP (the chooser); other states keep
-   their state-specific surfaces. */
-body[data-state="mid-icp"] .right {
-  background: #F2EDE3;
-}
-body[data-state="mid-icp"] .eyebrow-dot {
-  background: #6D2233;  /* oxblood — matches the primary CTA accent */
-}
 
 /* ════════════════════════════════════════════════════════════════════════
    Responsive — same breakpoint discipline as signup-v20.html
@@ -957,17 +948,17 @@ body[data-state="mid-icp"] .eyebrow-dot {
   margin-top: 12px; align-items: stretch;
 }
 @media (max-width: 760px) { .chooser-grid { grid-template-columns: 1fr; } }
-/* Sierra-inspired restraint: hairline border, no drop shadow, warm off-white
-   ground. Hover signals via border-color shift only — no elevation candy. */
+/* Restraint via 1px hairline + no drop shadow. Pure white card on pure white
+   page → very clean B2B SaaS feel, brand colors live in the pills + CTAs. */
 .chooser-card {
-  background: #FAFAF7;
-  border: 1px solid #E5E2D9;
-  border-radius: 12px; padding: 30px 30px 26px;
+  background: #fff;
+  border: 1px solid var(--line-2);
+  border-radius: 14px; padding: 30px 30px 26px;
   display: flex; flex-direction: column; gap: 14px;
   transition: border-color 0.2s ease;
 }
 .chooser-card:hover {
-  border-color: #BCB6A2;
+  border-color: color-mix(in oklch, var(--violet-a), white 50%);
 }
 /* Tier pills (Enterprise / Self-Serve) replace the calendar+lightning icons —
    "futuristic" via JetBrains Mono + dot indicator + subtle border-glow. Style
@@ -997,16 +988,15 @@ body[data-state="mid-icp"] .eyebrow-dot {
   background: transparent;
   border: 1px solid color-mix(in oklch, oklch(0.45 0.18 5), white 60%);
 }
-/* Both cards on the same warm off-white ground — the violet/pink-tinted
-   gradient was reading as "candy SaaS". Differentiation now comes from the
-   tier pill at top + the CTA color, not from card backgrounds. */
+/* Enterprise card gets a slightly more pronounced violet border to signal
+   "primary path"; Self-Serve stays neutral. Single visual lever. */
 .chooser-card.book {
-  background: #FAFAF7;
-  border-color: #D9D3C2;
+  background: #fff;
+  border-color: color-mix(in oklch, var(--violet-a), white 65%);
 }
 .chooser-card.alg {
-  background: #FAFAF7;
-  border-color: #E5E2D9;
+  background: #fff;
+  border-color: var(--line-2);
 }
 .chooser-card h3 {
   font-family: 'Inter Tight', 'Inter', sans-serif;
@@ -1036,15 +1026,14 @@ body[data-state="mid-icp"] .eyebrow-dot {
   margin-top: 6px; margin-bottom: 0;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
-/* Sierra-style hairline bullets — no candy green check disc. Each row is
-   separated by a 1px rule above; the leading "+" glyph is mono-typed for the
-   editorial avant-garde feel. */
+/* Hairline-divided rows with a mono "+" leading glyph — cleaner than the
+   green check-disc bullets, more editorial. Color uses Improvado palette. */
 .chooser-card ul { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; }
 .chooser-card li {
   font-size: 12.5px; color: var(--ink-2);
   padding: 10px 0 10px 24px; position: relative; line-height: 1.5;
   letter-spacing: -0.005em;
-  border-top: 1px solid #E5E2D9;
+  border-top: 1px solid var(--line);
 }
 .chooser-card li:first-child { border-top: none; padding-top: 4px; }
 .chooser-card li::before {
@@ -1055,6 +1044,7 @@ body[data-state="mid-icp"] .eyebrow-dot {
   width: 16px; text-align: center;
 }
 .chooser-card.book li::before { color: var(--violet-deep); }
+.chooser-card.alg li::before { color: var(--pink); opacity: 0.7; }
 /* Tentative bullet — yellow disc, italicized note. Used for fit signals
    that are guidance rather than guarantees (e.g. budget heuristics). */
 .chooser-card li.tentative { color: var(--ink-2); font-style: italic; font-weight: 700; }
@@ -1063,10 +1053,8 @@ body[data-state="mid-icp"] .eyebrow-dot {
   background-image: none;                 /* drop the green check glyph */
   border: 1px solid color-mix(in oklch, oklch(0.78 0.16 85), transparent 30%);
 }
-/* CTA hierarchy refactored per avant-garde palette study (Goncharova oxblood
-   #6D2233 from Spanish Dancer 1916). Book-a-Call gets the single saturated
-   accent — Self-Serve gets a ghost button so visual gravity lands on the paid
-   side. Drops violet-pink "candy" both for editorial restraint and CRO win. */
+/* Book-a-Call = Improvado violet gradient (primary). Self-Serve = ghost button
+   (secondary). Single-lever hierarchy: filled vs outlined. */
 .chooser-card .cta {
   margin-top: auto;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -1074,23 +1062,22 @@ body[data-state="mid-icp"] .eyebrow-dot {
   font-weight: 600; font-size: 14.5px; font-family: inherit;
   letter-spacing: -0.005em;
   border: 1px solid transparent; cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 .chooser-card.book .cta {
-  /* Goncharova oxblood — single saturated accent per viewport. */
-  background: #6D2233; color: #FAFAF7;
-  border-color: #5A1B2A;
+  background: linear-gradient(135deg, var(--violet-a), var(--violet-b));
+  color: #fff;
+  box-shadow: 0 10px 24px -12px var(--violet-a);
 }
 .chooser-card.book .cta:hover {
-  background: #5A1B2A;
+  box-shadow: 0 14px 28px -10px var(--violet-a);
 }
 .chooser-card.alg .cta {
-  /* Ghost — ink outline on warm canvas. Self-Serve is the calmer choice. */
-  background: transparent; color: #1A1A1F;
-  border: 1px solid #1A1A1F;
+  background: transparent; color: var(--ink);
+  border: 1px solid color-mix(in oklch, var(--ink), white 30%);
 }
 .chooser-card.alg .cta:hover {
-  background: #1A1A1F; color: #FAFAF7;
+  background: var(--ink); color: #fff; border-color: var(--ink);
 }
 .chooser-card .badge {
   display: inline-block; align-self: flex-start;
