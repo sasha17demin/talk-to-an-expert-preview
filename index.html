@@ -122,14 +122,13 @@ body[data-state="high-icp"] {
   --right-max-width: none;
 }
 
-/* MID-ICP pricing chooser — give right pane more room than default but DON'T
-   crush the left illustration (which carries the brand). Sweet spot found by
-   iteration: 0.78fr 1fr keeps the left card visible and dignified while giving
-   the chooser ~55% of the viewport. */
+/* MID-ICP pricing chooser — give the right pane the same wide-right grid as
+   HIGH-ICP, drop the max-width cap so cards can fill the pane, and leave the
+   left illustration at a balanced 0.7fr (was being crushed at 0.55fr). */
 body[data-state="mid-icp"] {
-  --page-cols: 0.78fr 1fr;
-  --right-padding: 24px 44px 22px;
-  --right-max-width: 820px;
+  --page-cols: 0.7fr 1fr;
+  --right-padding: 28px 44px 24px;
+  --right-max-width: none;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
