@@ -947,13 +947,44 @@ body[data-state="high-icp"] {
   box-shadow: 0 16px 40px -16px rgba(108,58,237,0.20);
   transform: translateY(-2px);
 }
-.chooser-card .icon {
-  width: 42px; height: 42px; border-radius: 11px;
-  display: grid; place-items: center;
+/* Tier pills (Enterprise / Self-Serve) replace the calendar+lightning icons —
+   "futuristic" via JetBrains Mono + dot indicator + subtle border-glow. Style
+   echoes the 'Most teams start here' badge so the family reads as one. */
+.chooser-tier-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: -2px;
 }
-.chooser-card.book .icon { background: color-mix(in oklch, var(--violet-a), transparent 84%); color: var(--violet-deep); }
-.chooser-card.alg  .icon { background: color-mix(in oklch, var(--pink), transparent 84%); color: var(--pink); }
-.chooser-card .icon svg { width: 22px; height: 22px; }
+.tier-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 6px 12px; border-radius: 999px;
+}
+.tier-pill::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+}
+.tier-enterprise {
+  color: var(--violet-deep);
+  background: color-mix(in oklch, var(--violet-a), white 84%);
+  border: 1px solid color-mix(in oklch, var(--violet-a), white 60%);
+}
+.tier-self-serve {
+  color: oklch(0.50 0.22 5);
+  background: color-mix(in oklch, var(--pink), white 88%);
+  border: 1px solid color-mix(in oklch, var(--pink), white 65%);
+}
+/* Slight whole-card color tint per Daniel's call feedback — subtle wash that
+   reads as "violet block" / "pink block" without screaming. */
+.chooser-card.book {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--violet-a), white 94%) 0%, #fff 100%);
+  border-color: color-mix(in oklch, var(--violet-a), white 60%);
+}
+.chooser-card.alg {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--pink), white 95%) 0%, #fff 100%);
+  border-color: color-mix(in oklch, var(--pink), white 65%);
+}
 .chooser-card h3 {
   font-family: 'Inter Tight', 'Inter', sans-serif;
   font-size: 20px; font-weight: 600; color: var(--ink); margin: 0;
@@ -1356,48 +1387,46 @@ body[data-dev="2"][data-state="identity-selection"] .dev-controls::after {
 
         <div class="chooser-grid">
           <article class="chooser-card book">
-            <div class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div class="chooser-tier-head">
+              <span class="tier-pill tier-enterprise">Enterprise</span>
+              <span class="badge">Most teams start here</span>
             </div>
-            <span class="badge">Most teams start here</span>
             <h3>Talk to an Improvado strategist</h3>
             <div class="price-tag">
               <span class="price-num">Start at&nbsp;$20K</span>
               <span class="price-period">/&nbsp;year</span>
             </div>
             <div class="price-fine">~$1.7K/month, billed annually · Professional plan</div>
-            <p>A strategist scopes your channels, sets up the platform with you, and stays on as your dedicated CSM.</p>
             <div class="feat-label">What you get</div>
             <ul>
+              <li>1,000+ connectors + custom connectors on request</li>
               <li>Dedicated CSM &amp; premium support</li>
-              <li>600M data rows / yr · 500+ sources · 4× daily sync</li>
-              <li>Unlimited dashboards · MDG · Attribution</li>
-              <li>300 AI queries / week · Video &amp; Semantic Analytics</li>
-              <li>SSO (Azure, Okta) · HIPAA · Miras Knowledge Platform</li>
+              <li>Marketing Data Governance (MDG)</li>
+              <li>SSO · SOC 2 · HIPAA · GDPR</li>
+              <li>Client knowledge graph</li>
             </ul>
             <button type="button" class="cta" id="mid-icp-book">
-              Book a 30-min call
+              Book a Call
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
           </article>
 
           <article class="chooser-card alg">
-            <div class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor" fill-opacity="0.18"/></svg>
+            <div class="chooser-tier-head">
+              <span class="tier-pill tier-self-serve">Self-Serve</span>
             </div>
             <h3>Try the AI agent</h3>
             <div class="price-tag">
-              <span class="price-num">Free</span>
-              <span class="price-period">·&nbsp;no credit card</span>
+              <span class="price-num">$100</span>
+              <span class="price-period">/&nbsp;month</span>
             </div>
-            <div class="price-fine">14-day trial · upgrade to a paid plan when you're ready</div>
-            <p>Skip the call. Connect your marketing sources and chat with your data in 30 seconds.</p>
+            <div class="price-fine">Free for first 14 days · no credit card</div>
             <div class="feat-label">What's included</div>
             <ul>
-              <li>Connect any of 1,000+ marketing sources</li>
-              <li>Ask anything in plain English · cited answers</li>
-              <li>Saved query history · share replies with your team</li>
-              <li>AI-drafted dashboards from your live data</li>
+              <li>1,000+ connectors available</li>
+              <li>Pre-built use cases — instant insights</li>
+              <li>Fully analyze your data instantly</li>
+              <li>Plain-English questions, cited answers</li>
             </ul>
             <button type="button" class="cta" id="mid-icp-alg">
               Open the agent
