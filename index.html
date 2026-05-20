@@ -122,6 +122,15 @@ body[data-state="high-icp"] {
   --right-max-width: none;
 }
 
+/* MID-ICP pricing chooser — needs wide cards. Mirror HIGH-ICP's narrow-left/
+   wide-right grid so both Enterprise + Self-Serve cards have room to breathe
+   without scrunching text. */
+body[data-state="mid-icp"] {
+  --page-cols: 0.55fr 1fr;
+  --right-padding: 22px 40px 22px;
+  --right-max-width: 880px;
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    Responsive — same breakpoint discipline as signup-v20.html
    ════════════════════════════════════════════════════════════════════════ */
@@ -932,19 +941,19 @@ body[data-state="high-icp"] {
    STATE 3b: MID-ICP — side-by-side chooser
    ════════════════════════════════════════════════════════════════════════ */
 .chooser-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
-  margin-top: 8px;
+  display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px;
+  margin-top: 10px;
 }
 @media (max-width: 760px) { .chooser-grid { grid-template-columns: 1fr; } }
 .chooser-card {
-  background: #fff; border: 1.5px solid var(--line-2);
-  border-radius: 18px; padding: 22px;
-  display: flex; flex-direction: column; gap: 12px;
+  background: #fff; border: 1px solid var(--line-2);
+  border-radius: 16px; padding: 28px 28px 24px;
+  display: flex; flex-direction: column; gap: 14px;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
 }
 .chooser-card:hover {
   border-color: var(--violet-a);
-  box-shadow: 0 16px 40px -16px rgba(108,58,237,0.20);
+  box-shadow: 0 20px 48px -20px rgba(20,20,40,0.18);
   transform: translateY(-2px);
 }
 /* Tier pills (Enterprise / Self-Serve) replace the calendar+lightning icons —
@@ -955,11 +964,11 @@ body[data-state="high-icp"] {
   margin-bottom: -2px;
 }
 .tier-pill {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 7px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.22em;
   text-transform: uppercase;
-  padding: 6px 12px; border-radius: 999px;
+  padding: 5px 12px; border-radius: 999px;
 }
 .tier-pill::before {
   content: ''; width: 5px; height: 5px; border-radius: 50%;
@@ -967,56 +976,57 @@ body[data-state="high-icp"] {
 }
 .tier-enterprise {
   color: var(--violet-deep);
-  background: color-mix(in oklch, var(--violet-a), white 84%);
-  border: 1px solid color-mix(in oklch, var(--violet-a), white 60%);
+  background: transparent;
+  border: 1px solid color-mix(in oklch, var(--violet-deep), white 55%);
 }
 .tier-self-serve {
-  color: oklch(0.50 0.22 5);
-  background: color-mix(in oklch, var(--pink), white 88%);
-  border: 1px solid color-mix(in oklch, var(--pink), white 65%);
+  color: oklch(0.45 0.18 5);
+  background: transparent;
+  border: 1px solid color-mix(in oklch, oklch(0.45 0.18 5), white 60%);
 }
-/* Slight whole-card color tint per Daniel's call feedback — subtle wash that
-   reads as "violet block" / "pink block" without screaming. */
+/* Subtle whole-card color wash — single visual lever per pricing-card SOTA
+   (one differentiator, not three). Pink wash on alg is barely-there so the
+   violet Enterprise card retains visual primacy. */
 .chooser-card.book {
-  background: linear-gradient(180deg, color-mix(in oklch, var(--violet-a), white 94%) 0%, #fff 100%);
-  border-color: color-mix(in oklch, var(--violet-a), white 60%);
+  background: linear-gradient(180deg, color-mix(in oklch, var(--violet-a), white 95%) 0%, #fff 60%);
+  border-color: color-mix(in oklch, var(--violet-a), white 70%);
 }
 .chooser-card.alg {
-  background: linear-gradient(180deg, color-mix(in oklch, var(--pink), white 95%) 0%, #fff 100%);
-  border-color: color-mix(in oklch, var(--pink), white 65%);
+  background: #fff;
+  border-color: var(--line);
 }
 .chooser-card h3 {
   font-family: 'Inter Tight', 'Inter', sans-serif;
-  font-size: 20px; font-weight: 600; color: var(--ink); margin: 0;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.015em;
+  color: var(--ink); margin: 0; line-height: 1.3;
 }
-.chooser-card p { font-size: 14px; color: var(--ink-3); margin: 0; }
-/* Pricing tier — large price + period, with annual-billing fine print. Mirrors
-   test-pricing/index.html Professional tier styling so the chooser reads as a
-   pricing-card decision, not a marketing-funnel fork. */
+.chooser-card p { font-size: 13px; color: var(--ink-3); margin: 0; line-height: 1.5; }
+/* Pricing tier — large price + period, with annual-billing fine print. */
 .chooser-card .price-tag {
-  display: flex; align-items: baseline; gap: 4px; margin-top: -2px;
+  display: flex; align-items: baseline; gap: 5px; margin-top: -4px;
 }
 .chooser-card .price-num {
   font-family: 'Inter Tight', 'Inter', sans-serif;
-  font-size: 32px; font-weight: 700; letter-spacing: -0.025em;
+  font-size: 26px; font-weight: 700; letter-spacing: -0.025em;
   color: var(--ink); line-height: 1;
 }
 .chooser-card .price-period {
-  font-size: 14px; font-weight: 500; color: var(--ink-3);
+  font-size: 13px; font-weight: 500; color: var(--ink-3);
 }
 .chooser-card .price-fine {
   font-size: 11.5px; color: var(--ink-3); margin-top: 2px;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.01em; line-height: 1.4;
 }
 .chooser-card .feat-label {
-  font-size: 10.5px; font-weight: 700; color: var(--ink-3);
-  text-transform: uppercase; letter-spacing: 0.10em;
-  margin-top: 4px; margin-bottom: -2px;
+  font-size: 9.5px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.16em;
+  margin-top: 6px; margin-bottom: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
-.chooser-card ul { list-style: none; padding: 0; margin: 4px 0; display: flex; flex-direction: column; gap: 6px; }
+.chooser-card ul { list-style: none; padding: 0; margin: 2px 0; display: flex; flex-direction: column; gap: 9px; }
 .chooser-card li {
-  font-size: 13px; color: var(--ink-2); padding-left: 20px;
-  position: relative; line-height: 1.45;
+  font-size: 12.5px; color: var(--ink-2); padding-left: 19px;
+  position: relative; line-height: 1.55; letter-spacing: -0.005em;
 }
 .chooser-card li::before {
   content: ''; position: absolute; left: 0; top: 6px;
@@ -1377,19 +1387,16 @@ body[data-dev="2"][data-state="identity-selection"] .dev-controls::after {
       <div class="state" data-state="mid-icp">
         <div class="eyebrow">
           <span class="eyebrow-dot"></span>
-          <span>Two ways to start</span>
+          <span>Choose your fit</span>
         </div>
-        <h1 class="headline">
-          <span class="kicker">Choose your fit.</span>
-          <span class="punch">Two ways to start.</span>
+        <h1 class="headline" style="margin-bottom: 4px;">
+          <span class="punch" style="font-size: 26px;">Two ways to start.</span>
         </h1>
-        <p class="sub">Some teams want a guided walkthrough first. Others want to skip the call and just try the agent.</p>
 
         <div class="chooser-grid">
           <article class="chooser-card book">
             <div class="chooser-tier-head">
               <span class="tier-pill tier-enterprise">Enterprise</span>
-              <span class="badge">Most teams start here</span>
             </div>
             <h3>Talk to an Improvado strategist</h3>
             <div class="price-tag">
